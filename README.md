@@ -246,6 +246,26 @@ Then open:
 
 Docker is optional. The project runs locally without Docker.
 
+## Render Backend Deployment
+
+The backend can be deployed to Render as a FastAPI web service using the included `render.yaml` Blueprint.
+
+Render service configuration:
+
+```text
+Service type: Web Service
+Runtime: Python
+Build command: pip install -r requirements.txt && python data/generate_synthetic_data.py
+Start command: python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+Health check path: /health
+```
+
+After the Render backend is live, copy its public URL and set it as `API_BASE_URL` in Streamlit Community Cloud secrets:
+
+```toml
+API_BASE_URL = "https://your-render-service.onrender.com"
+```
+
 ## Testing
 
 ```powershell
