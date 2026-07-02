@@ -5,6 +5,8 @@
 ![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)
 ![MLOps](https://img.shields.io/badge/MLOps-Log%20Analytics%20%7C%20RAG%20%7C%20Agents-1F2937?style=for-the-badge)
 
+[Live Demo](https://ai-platform-reliability-copilot-mmkajbee2t4acamzwu852j.streamlit.app/) | [Backend Health](https://ai-platform-reliability-copilot-api.onrender.com/health)
+
 An internal AI engineering assistant for platform teams. It uses runbook retrieval, tool-style agent workflows, log analytics, anomaly detection, and incident-summary generation to help engineers debug backend service issues faster.
 
 This project is built as a production-style AI platform portfolio project, not a notebook demo. It is aligned with AI engineering, backend engineering, platform reliability, and MLOps workflows used by cloud and developer-platform teams.
