@@ -261,11 +261,11 @@ The test suite covers:
 - Log analyzer error-rate calculations.
 - Incident summary generation.
 
-## Interview Explanation
+## Project Impact
 
-I built this as an AI platform reliability assistant for backend and platform engineers. It combines RAG over operational runbooks, tool-style agent orchestration, log analytics, anomaly detection, and incident-summary generation. The system lets an engineer ask a natural-language question about a failing service and returns a grounded answer with evidence from logs, metrics, deployment metadata, and runbooks.
+This project demonstrates how GenAI can improve developer productivity in platform engineering workflows. Instead of treating logs, metrics, runbooks, and incident notes as separate systems, the copilot brings them together through a single reliability-focused assistant.
 
-The main demo is a payment-service degradation in `ap-south` after deployment `v2.1.4`, where DB timeout errors, p95 latency, error rate, and timeout count all point to a deployment-correlated reliability issue.
+The system shows practical backend and AI platform engineering skills: API design, retrieval over technical documentation, agent-style tool orchestration, synthetic telemetry generation, anomaly detection, deployment correlation, and incident automation. The built-in payment-service scenario demonstrates how the copilot can connect DB timeout errors, p95 latency regressions, error-rate spikes, region metadata, and deployment version history into a clear root-cause hypothesis and action plan.
 
 ## Future Improvements
 
