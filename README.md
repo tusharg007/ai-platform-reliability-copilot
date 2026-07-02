@@ -261,29 +261,11 @@ The test suite covers:
 - Log analyzer error-rate calculations.
 - Incident summary generation.
 
-## Screenshots to Add
-
-Add screenshots under `docs/screenshots/` or directly in the README later:
-
-- Streamlit AI Copilot Chat answering the payment-service incident.
-- Service Health Dashboard with KPIs and charts.
-- Log Explorer filtered to `payment-service` and `ap-south`.
-- Anomaly Detection table for `p95_latency_ms`.
-- Incident Summary Generator with action plan.
-- FastAPI Swagger docs at `/docs`.
-
 ## Interview Explanation
 
 I built this as an AI platform reliability assistant for backend and platform engineers. It combines RAG over operational runbooks, tool-style agent orchestration, log analytics, anomaly detection, and incident-summary generation. The system lets an engineer ask a natural-language question about a failing service and returns a grounded answer with evidence from logs, metrics, deployment metadata, and runbooks.
 
 The main demo is a payment-service degradation in `ap-south` after deployment `v2.1.4`, where DB timeout errors, p95 latency, error rate, and timeout count all point to a deployment-correlated reliability issue.
-
-## Resume Bullets
-
-- Built an AI Platform Reliability Copilot using FastAPI, Python, Streamlit, RAG-style retrieval, and agentic tool orchestration to help engineers debug backend service incidents.
-- Developed log analytics and anomaly detection modules using Pandas, scikit-learn, rolling metrics, threshold detection, and Isolation Forest to identify latency spikes, error-rate anomalies, and deployment-related failures.
-- Implemented source-grounded runbook retrieval over engineering documentation to generate incident evidence, root-cause hypotheses, and recommended remediation steps.
-- Designed a cloud-ready backend with REST APIs, Pydantic schemas, Docker, GitHub Actions CI, Kubernetes manifests, and a monitoring dashboard for service health and reliability triage.
 
 ## Future Improvements
 
