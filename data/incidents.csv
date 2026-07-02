@@ -1,0 +1,3 @@
+incident_id,timestamp,service_name,severity,issue_type,root_cause,resolution,duration_minutes
+INC-2026-071,2026-07-02T16:30:00,payment-service,SEV-2,DB_CONNECTION_TIMEOUT,Connection pool saturation after deployment v2.1.4 in ap-south,"Increase pool limit, verify migrations, rollback if error rate stays above 5%",84
+INC-2026-068,2026-07-02T03:00:00,matchmaking-service,SEV-3,MATCHMAKING_QUEUE_TIMEOUT,Queue consumer lag during regional traffic spike,Scaled consumers and drained queue backlog,36

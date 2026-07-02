@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reliability-copilot-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: reliability-copilot-backend
+  template:
+    metadata:
+      labels:
+        app: reliability-copilot-backend
+    spec:
+      containers:
+        - name: backend
+          image: ai-platform-reliability-copilot:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: APP_ENV
+              value: production
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15

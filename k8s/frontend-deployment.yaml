@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reliability-copilot-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reliability-copilot-frontend
+  template:
+    metadata:
+      labels:
+        app: reliability-copilot-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: ai-platform-reliability-copilot:latest
+          imagePullPolicy: IfNotPresent
+          command: ["streamlit", "run", "frontend/app.py", "--server.address", "0.0.0.0", "--server.port", "8501"]
+          env:
+            - name: API_BASE_URL
+              value: http://reliability-copilot-backend:8000
+          ports:
+            - containerPort: 8501
