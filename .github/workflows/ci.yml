@@ -7,6 +7,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,4 +22,4 @@ jobs:
       - name: Generate synthetic data
         run: python data/generate_synthetic_data.py
       - name: Run tests
-        run: pytest -q
+        run: python -m pytest -q
