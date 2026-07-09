@@ -13,6 +13,7 @@ The repository has been upgraded into a production-oriented prototype for AI-ass
 - TF-IDF retrieval over runbooks and incident history plus template-based copilot responses.
 - FastAPI endpoints and a Streamlit dashboard backed by generated CSV outputs.
 - Screenshot generation, evaluation reports, smoke test, pytest suite, Docker assets, and CI workflow.
+- `pytest.ini` now ensures `python -m pytest tests -q` resolves `src` imports consistently.
 
 ## What Is Missing
 
@@ -35,6 +36,13 @@ The repository has been upgraded into a production-oriented prototype for AI-ass
 3. Start the API with `python -m uvicorn api.main:app --host 0.0.0.0 --port 8000`.
 4. Start the dashboard with `python -m streamlit run dashboard/app.py`.
 
+## Deployment Notes
+
+- Local dashboards are served with Streamlit for recruiter-friendly walkthroughs.
+- Optional Render deployment is API-only and uses `requirements-api.txt`, `render.yaml`, and `scripts/render_start.sh`.
+- Render startup generates synthetic reliability data before launching FastAPI.
+- No deployment path in this repo claims real production telemetry or real company usage.
+
 ## Verified Commands
 
 The following commands were verified locally during this upgrade on 2026-07-10:
@@ -42,7 +50,7 @@ The following commands were verified locally during this upgrade on 2026-07-10:
 1. `python -m compileall src api tests`
 2. `python -m src.validate_outputs`
 3. `python -m src.smoke_test`
-4. `pytest tests -q`
+4. `python -m pytest tests -q`
 
 ## Remaining Limitations
 

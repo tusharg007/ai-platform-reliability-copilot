@@ -100,6 +100,7 @@ Each log record includes timestamp, service name, environment, log level, reques
 ![Anomaly Detection](assets/anomaly_detection.png)
 
 The screenshot set is generated from recalibrated outputs with validation checks to prevent empty error-rate views and saturated risk-score charts.
+Severity scoring is also calibrated to keep alert levels varied and to reserve `critical` for stronger multi-signal degradation windows.
 
 ## Verified Local Run Status
 
@@ -109,7 +110,7 @@ The intended verification commands are:
 python -m compileall src api tests
 python -m src.validate_outputs
 python -m src.smoke_test
-pytest tests -q
+python -m pytest tests -q
 ```
 
 See `PROJECT_STATUS.md` for the most current verified state.
@@ -149,6 +150,13 @@ The Streamlit dashboard includes:
 - Root Cause Analysis
 - Copilot Assistant
 - Model Evaluation
+
+## Deployment Notes
+
+- Local dashboard usage is Streamlit-based and intended for local demos.
+- Optional Render deployment is FastAPI-only through `render.yaml` and `scripts/render_start.sh`.
+- Render startup generates synthetic reliability data, builds processed outputs, validates them, and then starts the API.
+- The deployed API remains a deployment-ready API prototype built on synthetic platform logs and simulated incidents, not real production telemetry.
 
 ## Repository Structure
 

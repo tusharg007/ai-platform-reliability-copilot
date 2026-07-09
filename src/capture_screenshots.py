@@ -154,28 +154,31 @@ def save_incident_timeline(incidents_df: pd.DataFrame) -> Path:
     ax2 = fig.add_subplot(grid[0, 1])
     ax3 = fig.add_subplot(grid[1, 1])
 
-    starts = incidents_df["start_time"].map(pd.Timestamp.timestamp)
-    durations = incidents_df["end_time"].map(pd.Timestamp.timestamp) - starts
-    colors = incidents_df["severity"].map({"low": "#6ea8fe", "medium": "#f9c74f", "high": "#f9844a", "critical": "#d62828"})
-    ax1.barh(incidents_df["incident_id"], durations, left=starts, color=colors)
-    ax1.set_title("Incident Timeline")
-    ax1.set_xlabel("Unix Time Window")
+    incidents_by_day = incidents_df.groupby([incidents_df["start_time"].dt.date, "severity"]).size().unstack(fill_value=0)
+    incidents_by_day = incidents_by_day.reindex(columns=["low", "medium", "high", "critical"], fill_value=0)
+    incidents_by_day.plot(kind="bar", stacked=True, ax=ax1, color=["#6ea8fe", "#f9c74f", "#f9844a", "#d62828"])
+    ax1.set_title("Incidents by Day and Severity")
+    ax1.set_xlabel("Incident Start Date")
+    ax1.set_ylabel("Incident Count")
+    ax1.tick_params(axis="x", rotation=35)
 
     severity_counts = incidents_df["severity"].value_counts().reindex(["low", "medium", "high", "critical"], fill_value=0)
     ax2.bar(severity_counts.index, severity_counts.values, color=["#6ea8fe", "#f9c74f", "#f9844a", "#d62828"])
     ax2.set_title("Incident Severity Distribution")
 
     ax3.axis("off")
+    top_incidents = incidents_df.assign(severity_rank=incidents_df["severity"].map({"critical": 4, "high": 3, "medium": 2, "low": 1}))
+    top_incidents = top_incidents.sort_values(["severity_rank", "alert_count", "start_time"], ascending=[False, False, False]).head(8)
     table = ax3.table(
-        cellText=incidents_df.head(8)[["incident_id", "primary_service", "alert_count"]].values,
-        colLabels=["Incident", "Primary Service", "Alerts"],
+        cellText=top_incidents[["incident_id", "primary_service", "severity", "alert_count"]].values,
+        colLabels=["Incident", "Primary Service", "Severity", "Alerts"],
         loc="center",
         cellLoc="left",
     )
     table.auto_set_font_size(False)
     table.set_fontsize(9)
     table.scale(1, 1.5)
-    ax3.set_title("Affected Services Snapshot")
+    ax3.set_title("Top Recent / Highest Severity Incidents")
     return save_figure(fig, "incident_timeline.png")
 
 
@@ -193,7 +196,7 @@ def save_copilot_assistant() -> Path:
         lines.append(f"{key}:")
         value = response[key]
         if isinstance(value, list):
-            lines.extend([f"- {item}" for item in value[:4]])
+            lines.extend([f"- {item}" for item in value[:6]])
         else:
             lines.append(str(value))
         lines.append("")
@@ -208,11 +211,27 @@ def save_model_evaluation(metrics_json: dict[str, object], risk_df: pd.DataFrame
     ax2 = fig.add_subplot(grid[0, 1])
 
     metric_names = ["incident_detection_recall", "alert_precision_estimate", "incident_clustering_overlap", "retrieval_relevance_at_3"]
+    pretty_labels = [
+        "Incident Detection Recall",
+        "Alert Precision Estimate",
+        "Incident Clustering Overlap",
+        "Retrieval Relevance@3",
+    ]
     metric_values = [float(metrics_json[name]) for name in metric_names]
-    ax1.bar(metric_names, metric_values, color="#43aa8b")
+    ax1.bar(pretty_labels, metric_values, color="#43aa8b")
     ax1.set_ylim(0, 1.0)
-    ax1.set_title("Evaluation Metrics")
+    ax1.set_title("Synthetic Ground-Truth Evaluation")
     ax1.tick_params(axis="x", rotation=35)
+    ax1.text(
+        0.02,
+        -0.22,
+        "Metrics are approximate and evaluated against simulated incident windows.",
+        transform=ax1.transAxes,
+        va="top",
+        fontsize=9,
+        bbox={"boxstyle": "round,pad=0.3", "facecolor": "#f2f2f2", "edgecolor": "#cccccc"},
+        clip_on=False,
+    )
 
     ax2.hist(risk_df["risk_score"], bins=6, color="#577590", edgecolor="white")
     ax2.set_title("Risk Score Distribution")

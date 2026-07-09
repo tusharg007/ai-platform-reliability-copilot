@@ -57,6 +57,8 @@ def detect_anomalies(processed_dir: Path | None = None, predictions_dir: Path | 
         iso_flag = model.predict(features) == -1
         service_df["iso_score"] = iso_score
         service_df["iso_flag"] = iso_flag
+        iso_high = float(np.quantile(iso_score, 0.90))
+        iso_critical = float(np.quantile(iso_score, 0.985))
 
         rolling_stats = {}
         for metric in FEATURE_COLUMNS:
@@ -90,7 +92,16 @@ def detect_anomalies(processed_dir: Path | None = None, predictions_dir: Path | 
                     continue
 
                 alert_type = infer_alert_type(metric, row, service_df, idx)
-                severity = infer_severity(metric, metric_value, baseline_value, robust_z, float(row["iso_score"]))
+                severity = infer_severity(
+                    metric,
+                    metric_value,
+                    baseline_value,
+                    robust_z,
+                    float(row["iso_score"]),
+                    row,
+                    iso_high,
+                    iso_critical,
+                )
                 alert_rows.append(
                     {
                         "alert_id": f"ALT-{uuid.uuid4().hex[:10]}",
@@ -165,16 +176,37 @@ def infer_alert_type(metric: str, row: pd.Series, service_df: pd.DataFrame, idx:
     return METRIC_TO_ALERT[metric]
 
 
-def infer_severity(metric: str, metric_value: float, baseline_value: float, robust_z: float, iso_score: float) -> str:
+def infer_severity(
+    metric: str,
+    metric_value: float,
+    baseline_value: float,
+    robust_z: float,
+    iso_score: float,
+    row: pd.Series,
+    iso_high: float,
+    iso_critical: float,
+) -> str:
     ratio = metric_value / max(baseline_value, 1e-6)
-    score = max(abs(robust_z), ratio, iso_score / 0.55)
-    if metric in {"avg_queue_lag", "avg_db_latency_ms"}:
-        score += 0.2
+    multi_signal_count = sum(
+        [
+            metric_value > max(0.025, baseline_value * 1.9) if metric == "error_rate" else False,
+            float(row["status_5xx_rate"]) > max(0.02, float(row["status_5xx_rate_baseline"]) * 1.8),
+            float(row["p95_latency_ms"]) > max(180, float(row["p95_latency_ms_baseline"]) * 1.45),
+            float(row["avg_db_latency_ms"]) > max(45, float(row["avg_db_latency_ms_baseline"]) * 2.0),
+            float(row["avg_queue_lag"]) > max(12, float(row["avg_queue_lag_baseline"]) * 2.0),
+            float(row["avg_memory_usage"]) > max(78, float(row["avg_memory_usage_baseline"]) * 1.22),
+        ]
+    )
+    score = max(abs(robust_z), ratio, iso_score / max(iso_high, 1e-6))
+    if metric in {"avg_queue_lag", "avg_db_latency_ms", "status_5xx_rate"}:
+        score += 0.15
     if metric == "auth_failure_rate":
-        score += 0.1
-    if score >= 4.2:
+        score += 0.05
+
+    is_extreme = iso_score >= iso_critical or abs(robust_z) >= 4.8 or ratio >= 3.2
+    if is_extreme and multi_signal_count >= 3:
         return "critical"
-    if score >= 3.0:
+    if score >= 2.75 or (abs(robust_z) >= 3.4 and multi_signal_count >= 1):
         return "high"
     if score >= 2.0:
         return "medium"

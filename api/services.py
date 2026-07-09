@@ -13,7 +13,10 @@ from src.copilot import answer_question
 
 def _read_csv(path: Path) -> pd.DataFrame:
     if not path.exists():
-        raise HTTPException(status_code=404, detail=f"Required output missing: {path.name}. Run the pipeline first.")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Required output missing: {path.name}. Generate the synthetic reliability pipeline outputs before calling this endpoint.",
+        )
     return pd.read_csv(path)
 
 

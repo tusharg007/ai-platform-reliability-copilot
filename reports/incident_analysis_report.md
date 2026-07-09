@@ -1,13 +1,13 @@
 # Incident Analysis Report
 
 - Known incidents: 7
-- Reliability alerts: 263
-- Clustered incidents: 83
-- High-risk services: 5
+- Reliability alerts: 287
+- Clustered incidents: 108
+- High-risk services: 4
 
 ## Top Risk Services
-- payment-service: score=87.92, band=Critical, drivers=error rate, p95 latency
-- api-gateway: score=69.49, band=High, drivers=error rate, incident count
-- worker-service: score=64.78, band=High, drivers=p95 latency, error rate
-- recommendation-service: score=62.8, band=High, drivers=p95 latency, memory pressure
-- notification-service: score=62.41, band=High, drivers=error rate, p95 latency
+- payment-service: score=88.46, band=Critical, drivers=error rate, p95 latency
+- api-gateway: score=68.89, band=High, drivers=error rate, anomaly count
+- recommendation-service: score=65.13, band=High, drivers=p95 latency, memory pressure
+- notification-service: score=63.06, band=High, drivers=error rate, p95 latency
+- worker-service: score=58.59, band=Medium, drivers=p95 latency, error rate

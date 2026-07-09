@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: ai-platform-reliability-copilot-api
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements-api.txt
+    startCommand: bash scripts/render_start.sh
+    autoDeploy: true
