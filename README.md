@@ -181,7 +181,7 @@ ai-platform-reliability-copilot/
 - `reports/responsible_ai_notes.md`
 - `reports/architecture.md`
 
-## Supported Resume Claims
+## Summary
 
 - Production-oriented prototype for AI-assisted reliability analytics.
 - Synthetic incident intelligence workflow spanning ingestion, anomaly detection, retrieval, and API delivery.
