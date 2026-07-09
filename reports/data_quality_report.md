@@ -1,11 +1,11 @@
 # Data Quality Report
 
-This report reflects generated synthetic platform telemetry after ingestion and normalization.
+Synthetic platform telemetry was normalized into service-level hourly metrics with incident flags.
 
 ## Summary
-- Records analyzed: 28224
+- Raw log rows: 166199
 - Hourly metric rows: 2352
-- Timestamp range: 2026-06-25 21:00:00+00:00 to 2026-07-09 20:55:00+00:00
+- Timestamp range: 2026-06-25 21:00:01+00:00 to 2026-07-09 20:59:56+00:00
 - Duplicate request IDs: 0
 
 ## Missing Values
@@ -28,28 +28,30 @@ This report reflects generated synthetic platform telemetry after ingestion and 
 - deployment_version: 0
 - hour: 0
 - is_error: 0
+- is_4xx: 0
+- is_5xx: 0
 - is_auth_failure: 0
-- is_timeout: 0
-
-## Log Level Distribution
-- INFO: 99.50%
-- ERROR: 0.30%
-- WARN: 0.20%
-
-## Service Coverage
-- api-gateway: 4032 rows
-- auth-service: 4032 rows
-- database-service: 4032 rows
-- notification-service: 4032 rows
-- payment-service: 4032 rows
-- recommendation-service: 4032 rows
-- worker-service: 4032 rows
+- known_incident_flag: 0
+- incident_label: 0
 
 ## Error Rate By Service
-- payment-service: 0.84%
-- api-gateway: 0.50%
-- notification-service: 0.22%
-- recommendation-service: 0.20%
-- worker-service: 0.20%
-- database-service: 0.12%
-- auth-service: 0.00%
+- payment-service: 1.70%
+- api-gateway: 1.58%
+- notification-service: 0.93%
+- worker-service: 0.75%
+- recommendation-service: 0.72%
+- database-service: 0.59%
+- auth-service: 0.46%
+
+## Request Count Variation
+- api-gateway: min=82.0, mean=155.97, max=240.0
+- auth-service: min=50.0, mean=103.21, max=153.0
+- database-service: min=20.0, mean=38.54, max=62.0
+- notification-service: min=21.0, mean=42.26, max=64.0
+- payment-service: min=27.0, mean=53.69, max=85.0
+- recommendation-service: min=38.0, mean=69.04, max=110.0
+- worker-service: min=17.0, mean=31.92, max=50.0
+
+## Incident Coverage
+- Incident-flagged service-hour rows: 112
+- Distinct incident labels: 7

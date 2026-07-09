@@ -1,9 +1,8 @@
-incident_id,suspected_root_cause,primary_service,affected_services,region,severity,start_time,end_time,deployment_version,description
-INC-1001,database timeout,database-service,"database-service,payment-service,api-gateway",us-east-1,high,2026-06-29 01:00:00+00:00,2026-06-29 11:00:00+00:00,2026.07.1,Primary database latency spike cascades into upstream timeouts.
-INC-1002,memory leak,recommendation-service,recommendation-service,eu-west-1,medium,2026-07-01 03:00:00+00:00,2026-07-01 21:00:00+00:00,2026.07.2,Memory rises steadily until restart pressure appears.
-INC-1003,deployment regression,api-gateway,"api-gateway,payment-service",us-west-2,high,2026-07-02 21:00:00+00:00,2026-07-03 09:00:00+00:00,2026.07.3,New gateway release increases 5xx responses and latency.
-INC-1004,queue backlog,worker-service,"worker-service,notification-service",ap-south-1,medium,2026-07-04 11:00:00+00:00,2026-07-05 03:00:00+00:00,2026.07.2,Consumer lag grows and downstream notifications slow.
-INC-1005,high latency,api-gateway,"api-gateway,recommendation-service",us-east-1,medium,2026-07-05 21:00:00+00:00,2026-07-06 05:00:00+00:00,2026.07.4,High CPU and fan-out latency elevate p95 response times.
-INC-1006,authentication failure spike,auth-service,"auth-service,api-gateway",eu-west-1,medium,2026-07-06 21:00:00+00:00,2026-07-07 03:00:00+00:00,2026.07.4,Invalid token verification path triggers elevated 401/403s.
-INC-1007,5xx error spike,payment-service,payment-service,us-west-2,high,2026-07-07 21:00:00+00:00,2026-07-08 05:00:00+00:00,2026.07.5,Payment processor errors elevate server-side failures.
-INC-1008,external API failure,notification-service,"notification-service,worker-service",ap-south-1,medium,2026-07-08 21:00:00+00:00,2026-07-09 07:00:00+00:00,2026.07.5,Third-party notification provider becomes unstable.
+incident_id,incident_type,primary_service,affected_services,region,severity,start_time,end_time,deployment_version,description
+INC-2003,memory leak,recommendation-service,recommendation-service,eu-west-1,medium,2026-07-03 05:00:00+00:00,2026-07-04 01:00:00+00:00,2026.07.2,Heap growth accumulates over many hours before latency and errors worsen.
+INC-2001,database timeout,database-service,"database-service,api-gateway,payment-service",us-east-1,high,2026-07-04 09:00:00+00:00,2026-07-04 18:00:00+00:00,2026.07.3,Database latency surge causes upstream timeouts and elevated 5xx responses.
+INC-2002,deployment regression,api-gateway,"api-gateway,payment-service",us-west-2,high,2026-07-06 05:00:00+00:00,2026-07-06 13:00:00+00:00,2026.07.4,A gateway deployment increases error rate and p95 latency immediately after rollout.
+INC-2007,high latency,recommendation-service,"recommendation-service,api-gateway",us-east-1,medium,2026-07-06 19:00:00+00:00,2026-07-07 01:00:00+00:00,2026.07.3,CPU-heavy recommendation fan-out increases latency without immediate hard failure.
+INC-2004,authentication failure spike,auth-service,"auth-service,api-gateway",eu-west-1,medium,2026-07-07 17:00:00+00:00,2026-07-07 22:00:00+00:00,2026.07.3,Expired sessions and invalid token validation increase 401 and 403 rates.
+INC-2005,external API failure,payment-service,payment-service,ap-south-1,critical,2026-07-08 17:00:00+00:00,2026-07-09 00:00:00+00:00,2026.07.4,External payment provider instability surfaces as 502 and 503 failures.
+INC-2006,queue backlog,worker-service,"worker-service,notification-service",ap-south-1,high,2026-07-09 03:00:00+00:00,2026-07-09 13:00:00+00:00,2026.07.4,Queue lag rises as worker throughput drops and notifications are delayed.

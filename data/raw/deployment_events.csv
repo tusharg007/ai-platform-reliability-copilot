@@ -1,99 +1,31 @@
 service_name,deployment_version,event_type,timestamp,region,change_summary
-api-gateway,2026.07.1,deploy,2026-06-25T21:00:00+00:00,us-east-1,Scheduled synthetic deployment for api-gateway.
-auth-service,2026.07.1,deploy,2026-06-25T21:00:00+00:00,us-east-1,Scheduled synthetic deployment for auth-service.
-notification-service,2026.07.1,deploy,2026-06-25T21:00:00+00:00,us-east-1,Scheduled synthetic deployment for notification-service.
-worker-service,2026.07.1,deploy,2026-06-25T21:00:00+00:00,us-east-1,Scheduled synthetic deployment for worker-service.
-payment-service,2026.07.1,deploy,2026-06-25T21:00:00+00:00,us-east-1,Scheduled synthetic deployment for payment-service.
-database-service,2026.07.1,deploy,2026-06-25T21:00:00+00:00,us-east-1,Scheduled synthetic deployment for database-service.
-recommendation-service,2026.07.1,deploy,2026-06-25T21:00:00+00:00,us-east-1,Scheduled synthetic deployment for recommendation-service.
-payment-service,2026.07.2,deploy,2026-06-27T00:00:00+00:00,us-west-2,Scheduled synthetic deployment for payment-service.
-auth-service,2026.07.2,deploy,2026-06-27T00:00:00+00:00,us-west-2,Scheduled synthetic deployment for auth-service.
-worker-service,2026.07.2,deploy,2026-06-27T00:00:00+00:00,us-west-2,Scheduled synthetic deployment for worker-service.
-notification-service,2026.07.2,deploy,2026-06-27T00:00:00+00:00,us-west-2,Scheduled synthetic deployment for notification-service.
-api-gateway,2026.07.2,deploy,2026-06-27T00:00:00+00:00,us-west-2,Scheduled synthetic deployment for api-gateway.
-database-service,2026.07.2,deploy,2026-06-27T00:00:00+00:00,us-west-2,Scheduled synthetic deployment for database-service.
-recommendation-service,2026.07.2,deploy,2026-06-27T00:00:00+00:00,us-west-2,Scheduled synthetic deployment for recommendation-service.
-database-service,2026.07.3,deploy,2026-06-28T03:00:00+00:00,eu-west-1,Scheduled synthetic deployment for database-service.
-payment-service,2026.07.3,deploy,2026-06-28T03:00:00+00:00,eu-west-1,Scheduled synthetic deployment for payment-service.
-worker-service,2026.07.3,deploy,2026-06-28T03:00:00+00:00,eu-west-1,Scheduled synthetic deployment for worker-service.
-recommendation-service,2026.07.3,deploy,2026-06-28T03:00:00+00:00,eu-west-1,Scheduled synthetic deployment for recommendation-service.
-api-gateway,2026.07.3,deploy,2026-06-28T03:00:00+00:00,eu-west-1,Scheduled synthetic deployment for api-gateway.
-auth-service,2026.07.3,deploy,2026-06-28T03:00:00+00:00,eu-west-1,Scheduled synthetic deployment for auth-service.
-notification-service,2026.07.3,deploy,2026-06-28T03:00:00+00:00,eu-west-1,Scheduled synthetic deployment for notification-service.
-payment-service,2026.07.4,deploy,2026-06-29T06:00:00+00:00,ap-south-1,Scheduled synthetic deployment for payment-service.
-recommendation-service,2026.07.4,deploy,2026-06-29T06:00:00+00:00,ap-south-1,Scheduled synthetic deployment for recommendation-service.
-api-gateway,2026.07.4,deploy,2026-06-29T06:00:00+00:00,ap-south-1,Scheduled synthetic deployment for api-gateway.
-database-service,2026.07.4,deploy,2026-06-29T06:00:00+00:00,ap-south-1,Scheduled synthetic deployment for database-service.
-auth-service,2026.07.4,deploy,2026-06-29T06:00:00+00:00,ap-south-1,Scheduled synthetic deployment for auth-service.
-worker-service,2026.07.4,deploy,2026-06-29T06:00:00+00:00,ap-south-1,Scheduled synthetic deployment for worker-service.
-notification-service,2026.07.4,deploy,2026-06-29T06:00:00+00:00,ap-south-1,Scheduled synthetic deployment for notification-service.
-auth-service,2026.07.5,deploy,2026-06-30T09:00:00+00:00,us-east-1,Scheduled synthetic deployment for auth-service.
-notification-service,2026.07.5,deploy,2026-06-30T09:00:00+00:00,us-east-1,Scheduled synthetic deployment for notification-service.
-payment-service,2026.07.5,deploy,2026-06-30T09:00:00+00:00,us-east-1,Scheduled synthetic deployment for payment-service.
-recommendation-service,2026.07.5,deploy,2026-06-30T09:00:00+00:00,us-east-1,Scheduled synthetic deployment for recommendation-service.
-database-service,2026.07.5,deploy,2026-06-30T09:00:00+00:00,us-east-1,Scheduled synthetic deployment for database-service.
-worker-service,2026.07.5,deploy,2026-06-30T09:00:00+00:00,us-east-1,Scheduled synthetic deployment for worker-service.
-api-gateway,2026.07.5,deploy,2026-06-30T09:00:00+00:00,us-east-1,Scheduled synthetic deployment for api-gateway.
-auth-service,2026.07.1,deploy,2026-07-01T12:00:00+00:00,us-west-2,Scheduled synthetic deployment for auth-service.
-worker-service,2026.07.1,deploy,2026-07-01T12:00:00+00:00,us-west-2,Scheduled synthetic deployment for worker-service.
-recommendation-service,2026.07.1,deploy,2026-07-01T12:00:00+00:00,us-west-2,Scheduled synthetic deployment for recommendation-service.
-database-service,2026.07.1,deploy,2026-07-01T12:00:00+00:00,us-west-2,Scheduled synthetic deployment for database-service.
-payment-service,2026.07.1,deploy,2026-07-01T12:00:00+00:00,us-west-2,Scheduled synthetic deployment for payment-service.
-notification-service,2026.07.1,deploy,2026-07-01T12:00:00+00:00,us-west-2,Scheduled synthetic deployment for notification-service.
-api-gateway,2026.07.1,deploy,2026-07-01T12:00:00+00:00,us-west-2,Scheduled synthetic deployment for api-gateway.
-database-service,2026.07.2,deploy,2026-07-02T15:00:00+00:00,eu-west-1,Scheduled synthetic deployment for database-service.
-notification-service,2026.07.2,deploy,2026-07-02T15:00:00+00:00,eu-west-1,Scheduled synthetic deployment for notification-service.
-worker-service,2026.07.2,deploy,2026-07-02T15:00:00+00:00,eu-west-1,Scheduled synthetic deployment for worker-service.
-recommendation-service,2026.07.2,deploy,2026-07-02T15:00:00+00:00,eu-west-1,Scheduled synthetic deployment for recommendation-service.
-api-gateway,2026.07.2,deploy,2026-07-02T15:00:00+00:00,eu-west-1,Scheduled synthetic deployment for api-gateway.
-payment-service,2026.07.2,deploy,2026-07-02T15:00:00+00:00,eu-west-1,Scheduled synthetic deployment for payment-service.
-auth-service,2026.07.2,deploy,2026-07-02T15:00:00+00:00,eu-west-1,Scheduled synthetic deployment for auth-service.
-recommendation-service,2026.07.3,deploy,2026-07-03T18:00:00+00:00,ap-south-1,Scheduled synthetic deployment for recommendation-service.
-auth-service,2026.07.3,deploy,2026-07-03T18:00:00+00:00,ap-south-1,Scheduled synthetic deployment for auth-service.
-database-service,2026.07.3,deploy,2026-07-03T18:00:00+00:00,ap-south-1,Scheduled synthetic deployment for database-service.
-notification-service,2026.07.3,deploy,2026-07-03T18:00:00+00:00,ap-south-1,Scheduled synthetic deployment for notification-service.
-worker-service,2026.07.3,deploy,2026-07-03T18:00:00+00:00,ap-south-1,Scheduled synthetic deployment for worker-service.
-payment-service,2026.07.3,deploy,2026-07-03T18:00:00+00:00,ap-south-1,Scheduled synthetic deployment for payment-service.
-api-gateway,2026.07.3,deploy,2026-07-03T18:00:00+00:00,ap-south-1,Scheduled synthetic deployment for api-gateway.
-database-service,2026.07.4,deploy,2026-07-03T21:00:00+00:00,us-east-1,Scheduled synthetic deployment for database-service.
-auth-service,2026.07.4,deploy,2026-07-03T21:00:00+00:00,us-east-1,Scheduled synthetic deployment for auth-service.
-notification-service,2026.07.4,deploy,2026-07-03T21:00:00+00:00,us-east-1,Scheduled synthetic deployment for notification-service.
-payment-service,2026.07.4,deploy,2026-07-03T21:00:00+00:00,us-east-1,Scheduled synthetic deployment for payment-service.
-worker-service,2026.07.4,deploy,2026-07-03T21:00:00+00:00,us-east-1,Scheduled synthetic deployment for worker-service.
-recommendation-service,2026.07.4,deploy,2026-07-03T21:00:00+00:00,us-east-1,Scheduled synthetic deployment for recommendation-service.
-api-gateway,2026.07.4,deploy,2026-07-03T21:00:00+00:00,us-east-1,Scheduled synthetic deployment for api-gateway.
-notification-service,2026.07.5,deploy,2026-07-05T00:00:00+00:00,us-west-2,Scheduled synthetic deployment for notification-service.
-api-gateway,2026.07.5,deploy,2026-07-05T00:00:00+00:00,us-west-2,Scheduled synthetic deployment for api-gateway.
-recommendation-service,2026.07.5,deploy,2026-07-05T00:00:00+00:00,us-west-2,Scheduled synthetic deployment for recommendation-service.
-database-service,2026.07.5,deploy,2026-07-05T00:00:00+00:00,us-west-2,Scheduled synthetic deployment for database-service.
-worker-service,2026.07.5,deploy,2026-07-05T00:00:00+00:00,us-west-2,Scheduled synthetic deployment for worker-service.
-auth-service,2026.07.5,deploy,2026-07-05T00:00:00+00:00,us-west-2,Scheduled synthetic deployment for auth-service.
-payment-service,2026.07.5,deploy,2026-07-05T00:00:00+00:00,us-west-2,Scheduled synthetic deployment for payment-service.
-worker-service,2026.07.1,deploy,2026-07-06T03:00:00+00:00,eu-west-1,Scheduled synthetic deployment for worker-service.
-auth-service,2026.07.1,deploy,2026-07-06T03:00:00+00:00,eu-west-1,Scheduled synthetic deployment for auth-service.
-database-service,2026.07.1,deploy,2026-07-06T03:00:00+00:00,eu-west-1,Scheduled synthetic deployment for database-service.
-api-gateway,2026.07.1,deploy,2026-07-06T03:00:00+00:00,eu-west-1,Scheduled synthetic deployment for api-gateway.
-payment-service,2026.07.1,deploy,2026-07-06T03:00:00+00:00,eu-west-1,Scheduled synthetic deployment for payment-service.
-notification-service,2026.07.1,deploy,2026-07-06T03:00:00+00:00,eu-west-1,Scheduled synthetic deployment for notification-service.
-recommendation-service,2026.07.1,deploy,2026-07-06T03:00:00+00:00,eu-west-1,Scheduled synthetic deployment for recommendation-service.
-database-service,2026.07.2,deploy,2026-07-07T06:00:00+00:00,ap-south-1,Scheduled synthetic deployment for database-service.
-recommendation-service,2026.07.2,deploy,2026-07-07T06:00:00+00:00,ap-south-1,Scheduled synthetic deployment for recommendation-service.
-notification-service,2026.07.2,deploy,2026-07-07T06:00:00+00:00,ap-south-1,Scheduled synthetic deployment for notification-service.
-payment-service,2026.07.2,deploy,2026-07-07T06:00:00+00:00,ap-south-1,Scheduled synthetic deployment for payment-service.
-worker-service,2026.07.2,deploy,2026-07-07T06:00:00+00:00,ap-south-1,Scheduled synthetic deployment for worker-service.
-auth-service,2026.07.2,deploy,2026-07-07T06:00:00+00:00,ap-south-1,Scheduled synthetic deployment for auth-service.
-api-gateway,2026.07.2,deploy,2026-07-07T06:00:00+00:00,ap-south-1,Scheduled synthetic deployment for api-gateway.
-payment-service,2026.07.3,deploy,2026-07-08T09:00:00+00:00,us-east-1,Scheduled synthetic deployment for payment-service.
-worker-service,2026.07.3,deploy,2026-07-08T09:00:00+00:00,us-east-1,Scheduled synthetic deployment for worker-service.
-database-service,2026.07.3,deploy,2026-07-08T09:00:00+00:00,us-east-1,Scheduled synthetic deployment for database-service.
-auth-service,2026.07.3,deploy,2026-07-08T09:00:00+00:00,us-east-1,Scheduled synthetic deployment for auth-service.
-recommendation-service,2026.07.3,deploy,2026-07-08T09:00:00+00:00,us-east-1,Scheduled synthetic deployment for recommendation-service.
-notification-service,2026.07.3,deploy,2026-07-08T09:00:00+00:00,us-east-1,Scheduled synthetic deployment for notification-service.
-api-gateway,2026.07.3,deploy,2026-07-08T09:00:00+00:00,us-east-1,Scheduled synthetic deployment for api-gateway.
-worker-service,2026.07.4,deploy,2026-07-09T12:00:00+00:00,us-west-2,Scheduled synthetic deployment for worker-service.
-api-gateway,2026.07.4,deploy,2026-07-09T12:00:00+00:00,us-west-2,Scheduled synthetic deployment for api-gateway.
-payment-service,2026.07.4,deploy,2026-07-09T12:00:00+00:00,us-west-2,Scheduled synthetic deployment for payment-service.
-database-service,2026.07.4,deploy,2026-07-09T12:00:00+00:00,us-west-2,Scheduled synthetic deployment for database-service.
-auth-service,2026.07.4,deploy,2026-07-09T12:00:00+00:00,us-west-2,Scheduled synthetic deployment for auth-service.
-recommendation-service,2026.07.4,deploy,2026-07-09T12:00:00+00:00,us-west-2,Scheduled synthetic deployment for recommendation-service.
-notification-service,2026.07.4,deploy,2026-07-09T12:00:00+00:00,us-west-2,Scheduled synthetic deployment for notification-service.
+database-service,2026.07.1,deploy,2026-06-25T21:00:00+00:00,us-west-2,Synthetic rollout for database-service version 1.
+api-gateway,2026.07.1,deploy,2026-06-26T06:00:00+00:00,us-east-1,Synthetic rollout for api-gateway version 1.
+notification-service,2026.07.1,deploy,2026-06-26T09:00:00+00:00,us-west-2,Synthetic rollout for notification-service version 1.
+auth-service,2026.07.1,deploy,2026-06-26T09:00:00+00:00,us-west-2,Synthetic rollout for auth-service version 1.
+worker-service,2026.07.1,deploy,2026-06-26T15:00:00+00:00,ap-south-1,Synthetic rollout for worker-service version 1.
+recommendation-service,2026.07.1,deploy,2026-06-26T15:00:00+00:00,ap-south-1,Synthetic rollout for recommendation-service version 1.
+payment-service,2026.07.1,deploy,2026-06-26T18:00:00+00:00,us-east-1,Synthetic rollout for payment-service version 1.
+api-gateway,2026.07.2,deploy,2026-06-29T06:00:00+00:00,us-west-2,Synthetic rollout for api-gateway version 2.
+payment-service,2026.07.2,deploy,2026-06-29T18:00:00+00:00,us-west-2,Synthetic rollout for payment-service version 2.
+database-service,2026.07.2,deploy,2026-06-29T21:00:00+00:00,eu-west-1,Synthetic rollout for database-service version 2.
+auth-service,2026.07.2,deploy,2026-06-30T09:00:00+00:00,eu-west-1,Synthetic rollout for auth-service version 2.
+notification-service,2026.07.2,deploy,2026-06-30T09:00:00+00:00,eu-west-1,Synthetic rollout for notification-service version 2.
+worker-service,2026.07.2,deploy,2026-06-30T15:00:00+00:00,us-east-1,Synthetic rollout for worker-service version 2.
+recommendation-service,2026.07.2,deploy,2026-06-30T15:00:00+00:00,us-east-1,Synthetic rollout for recommendation-service version 2.
+api-gateway,2026.07.3,deploy,2026-07-02T06:00:00+00:00,eu-west-1,Synthetic rollout for api-gateway version 3.
+payment-service,2026.07.3,deploy,2026-07-02T18:00:00+00:00,eu-west-1,Synthetic rollout for payment-service version 3.
+database-service,2026.07.3,deploy,2026-07-03T21:00:00+00:00,ap-south-1,Synthetic rollout for database-service version 3.
+notification-service,2026.07.3,deploy,2026-07-04T09:00:00+00:00,ap-south-1,Synthetic rollout for notification-service version 3.
+auth-service,2026.07.3,deploy,2026-07-04T09:00:00+00:00,ap-south-1,Synthetic rollout for auth-service version 3.
+recommendation-service,2026.07.3,deploy,2026-07-04T15:00:00+00:00,us-west-2,Synthetic rollout for recommendation-service version 3.
+worker-service,2026.07.3,deploy,2026-07-04T15:00:00+00:00,us-west-2,Synthetic rollout for worker-service version 3.
+api-gateway,2026.07.4,deploy,2026-07-05T06:00:00+00:00,ap-south-1,Synthetic rollout for api-gateway version 4.
+payment-service,2026.07.4,deploy,2026-07-05T18:00:00+00:00,ap-south-1,Synthetic rollout for payment-service version 4.
+database-service,2026.07.4,deploy,2026-07-07T21:00:00+00:00,us-east-1,Synthetic rollout for database-service version 4.
+api-gateway,2026.07.5,deploy,2026-07-08T06:00:00+00:00,us-east-1,Synthetic rollout for api-gateway version 5.
+notification-service,2026.07.4,deploy,2026-07-08T09:00:00+00:00,us-east-1,Synthetic rollout for notification-service version 4.
+auth-service,2026.07.4,deploy,2026-07-08T09:00:00+00:00,us-east-1,Synthetic rollout for auth-service version 4.
+worker-service,2026.07.4,deploy,2026-07-08T15:00:00+00:00,eu-west-1,Synthetic rollout for worker-service version 4.
+recommendation-service,2026.07.4,deploy,2026-07-08T15:00:00+00:00,eu-west-1,Synthetic rollout for recommendation-service version 4.
+payment-service,2026.07.5,deploy,2026-07-08T18:00:00+00:00,us-east-1,Synthetic rollout for payment-service version 5.

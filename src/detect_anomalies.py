@@ -1,4 +1,4 @@
-"""Detect reliability anomalies from hourly service metrics."""
+"""Detect varied reliability anomalies from service-hour metrics."""
 
 from __future__ import annotations
 
@@ -13,14 +13,26 @@ from src.config import PREDICTIONS_DIR, PROCESSED_DATA_DIR, ensure_project_dirs
 
 
 FEATURE_COLUMNS = [
-    "avg_latency_ms",
-    "p95_latency_ms",
     "error_rate",
-    "memory_usage",
-    "cpu_usage",
-    "db_latency_ms",
-    "queue_lag",
+    "p95_latency_ms",
+    "avg_memory_usage",
+    "avg_cpu_usage",
+    "avg_db_latency_ms",
+    "avg_queue_lag",
+    "auth_failure_rate",
+    "status_5xx_rate",
 ]
+
+METRIC_TO_ALERT = {
+    "p95_latency_ms": "latency_spike",
+    "error_rate": "error_rate_spike",
+    "avg_memory_usage": "memory_pressure",
+    "avg_cpu_usage": "cpu_pressure",
+    "avg_db_latency_ms": "db_latency_spike",
+    "avg_queue_lag": "queue_backlog",
+    "auth_failure_rate": "auth_failure_spike",
+    "status_5xx_rate": "external_api_failure",
+}
 
 
 def detect_anomalies(processed_dir: Path | None = None, predictions_dir: Path | None = None) -> dict[str, pd.DataFrame]:
@@ -31,119 +43,170 @@ def detect_anomalies(processed_dir: Path | None = None, predictions_dir: Path | 
 
     metrics_df = pd.read_csv(source_dir / "service_hourly_metrics.csv")
     metrics_df["hour"] = pd.to_datetime(metrics_df["hour"], utc=True)
-    metrics_df = metrics_df.sort_values(["service_name", "region", "hour"]).reset_index(drop=True)
+    metrics_df = metrics_df.sort_values(["service_name", "hour"]).reset_index(drop=True)
 
-    anomaly_scores = []
-    alerts = []
-    for (service_name, region), service_df in metrics_df.groupby(["service_name", "region"]):
-        service_df = service_df.copy().sort_values("hour")
+    anomaly_rows: list[dict[str, object]] = []
+    alert_rows: list[dict[str, object]] = []
+
+    for service_name, service_df in metrics_df.groupby("service_name"):
+        service_df = service_df.copy().sort_values("hour").reset_index(drop=True)
         features = service_df[FEATURE_COLUMNS].fillna(service_df[FEATURE_COLUMNS].median())
-        contamination = min(0.12, max(0.03, 8 / max(len(service_df), 40)))
-        model = IsolationForest(random_state=42, contamination=contamination)
-        raw_predictions = model.fit_predict(features)
-        scores = -model.score_samples(features)
-        service_df["iso_flag"] = raw_predictions == -1
-        service_df["anomaly_score"] = scores
+        model = IsolationForest(random_state=42, contamination=0.06)
+        model.fit(features)
+        iso_score = -model.score_samples(features)
+        iso_flag = model.predict(features) == -1
+        service_df["iso_score"] = iso_score
+        service_df["iso_flag"] = iso_flag
 
+        rolling_stats = {}
         for metric in FEATURE_COLUMNS:
-            rolling_mean = service_df[metric].rolling(window=12, min_periods=6).mean()
-            rolling_std = service_df[metric].rolling(window=12, min_periods=6).std().replace(0, np.nan)
-            z_score = ((service_df[metric] - rolling_mean) / rolling_std).fillna(0)
-            service_df[f"{metric}_zscore"] = z_score
+            rolling_median = service_df[metric].rolling(window=24, min_periods=8).median()
+            rolling_mad = service_df[metric].rolling(window=24, min_periods=8).apply(_mad, raw=False).replace(0, np.nan)
+            robust_z = ((service_df[metric] - rolling_median) / (1.4826 * rolling_mad)).fillna(0.0)
+            rolling_mean = service_df[metric].rolling(window=24, min_periods=8).mean()
+            rolling_stats[metric] = (rolling_mean.fillna(service_df[metric].expanding().mean()), robust_z)
+            service_df[f"{metric}_baseline"] = rolling_mean.fillna(service_df[metric].expanding().mean())
+            service_df[f"{metric}_robust_z"] = robust_z
 
-        for _, row in service_df.iterrows():
-            anomaly_scores.append(
+        for idx, row in service_df.iterrows():
+            max_z = float(max(abs(row[f"{metric}_robust_z"]) for metric in FEATURE_COLUMNS))
+            anomaly_rows.append(
                 {
                     "timestamp": row["hour"].isoformat(),
                     "service_name": service_name,
-                    "region": region,
-                    "deployment_version": row["deployment_version"],
-                    "anomaly_score": round(float(row["anomaly_score"]), 6),
+                    "anomaly_score": round(float(row["iso_score"]), 6),
                     "is_isolation_forest_outlier": bool(row["iso_flag"]),
-                }
-            )
-
-            reasons = []
-            if row["iso_flag"]:
-                reasons.append("isolation_forest_outlier")
-            for metric in FEATURE_COLUMNS:
-                zscore_value = float(row[f"{metric}_zscore"])
-                if metric == "error_rate" and zscore_value >= 2.5:
-                    reasons.append("error_rate_zscore")
-                elif metric != "error_rate" and zscore_value >= 3.0:
-                    reasons.append(f"{metric}_zscore")
-            if row["error_rate"] >= 0.12:
-                reasons.append("error_rate_threshold")
-            if row["p95_latency_ms"] >= 450:
-                reasons.append("latency_threshold")
-            if row["memory_usage"] >= 85:
-                reasons.append("memory_pressure")
-            if row["cpu_usage"] >= 85:
-                reasons.append("cpu_pressure")
-            if row["db_latency_ms"] >= 160:
-                reasons.append("database_latency")
-            if row["queue_lag"] >= 30:
-                reasons.append("queue_backlog")
-
-            if not reasons:
-                continue
-
-            max_score = max(
-                float(row["error_rate"]) * 2.2,
-                float(row["p95_latency_ms"]) / 500,
-                float(row["memory_usage"]) / 100,
-                float(row["cpu_usage"]) / 100,
-                float(row["db_latency_ms"]) / 180,
-                float(row["queue_lag"]) / 40,
-                float(row["anomaly_score"]) / max(scores.max(), 0.0001),
-            )
-            severity = "critical" if max_score >= 1.5 else "high" if max_score >= 1.0 else "medium"
-            alert_type = classify_alert_type(reasons)
-            alerts.append(
-                {
-                    "alert_id": f"ALT-{uuid.uuid4().hex[:10]}",
-                    "timestamp": row["hour"].isoformat(),
-                    "service_name": service_name,
-                    "region": region,
-                    "severity": severity,
-                    "anomaly_score": round(float(row["anomaly_score"]), 6),
-                    "alert_type": alert_type,
-                    "anomaly_reason": ", ".join(sorted(set(reasons))),
-                    "suggested_investigation_area": suggested_investigation_area(alert_type),
+                    "max_robust_zscore": round(max_z, 4),
+                    "known_incident_flag": bool(row["known_incident_flag"]),
                     "deployment_version": row["deployment_version"],
                 }
             )
 
-    anomaly_scores_df = pd.DataFrame(anomaly_scores).sort_values(["timestamp", "service_name"]).reset_index(drop=True)
-    alerts_df = pd.DataFrame(alerts).sort_values(["timestamp", "severity"]).reset_index(drop=True)
+            for metric in FEATURE_COLUMNS:
+                metric_value = float(row[metric])
+                baseline_value = float(row[f"{metric}_baseline"])
+                robust_z = float(row[f"{metric}_robust_z"])
+                if not is_metric_alert(metric, metric_value, baseline_value, robust_z, row):
+                    continue
+
+                alert_type = infer_alert_type(metric, row, service_df, idx)
+                severity = infer_severity(metric, metric_value, baseline_value, robust_z, float(row["iso_score"]))
+                alert_rows.append(
+                    {
+                        "alert_id": f"ALT-{uuid.uuid4().hex[:10]}",
+                        "timestamp": row["hour"].isoformat(),
+                        "service_name": service_name,
+                        "severity": severity,
+                        "alert_type": alert_type,
+                        "anomaly_score": round(float(row["iso_score"]), 6),
+                        "metric_name": metric,
+                        "metric_value": round(metric_value, 6),
+                        "baseline_value": round(baseline_value, 6),
+                        "anomaly_reason": build_reason(metric, metric_value, baseline_value, robust_z, row),
+                        "suggested_investigation_area": suggested_investigation_area(alert_type),
+                        "deployment_version": row["deployment_version"],
+                    }
+                )
+
+    anomaly_scores_df = pd.DataFrame(anomaly_rows).sort_values(["timestamp", "service_name"]).reset_index(drop=True)
+    alerts_df = (
+        pd.DataFrame(alert_rows)
+        .sort_values(["timestamp", "severity", "service_name"], ascending=[True, False, True])
+        .reset_index(drop=True)
+    )
+    if alerts_df.empty:
+        raise ValueError("Anomaly detection produced no alerts")
+
     anomaly_scores_df.to_csv(target_dir / "anomaly_scores.csv", index=False)
     alerts_df.to_csv(target_dir / "reliability_alerts.csv", index=False)
     return {"anomaly_scores": anomaly_scores_df, "reliability_alerts": alerts_df}
 
 
-def classify_alert_type(reasons: list[str]) -> str:
-    joined = " ".join(reasons)
-    if "database" in joined:
-        return "database_latency"
-    if "memory" in joined:
-        return "memory_pressure"
-    if "queue" in joined:
+def _mad(series: pd.Series) -> float:
+    median = series.median()
+    return float((series - median).abs().median())
+
+
+def is_metric_alert(metric: str, metric_value: float, baseline_value: float, robust_z: float, row: pd.Series) -> bool:
+    if metric in {"error_rate", "status_5xx_rate"}:
+        return metric_value > max(0.015, baseline_value * 1.8) and robust_z >= 1.4
+    if metric == "auth_failure_rate":
+        return metric_value > max(0.03, baseline_value * 2.2) and robust_z >= 1.2
+    if metric == "avg_queue_lag":
+        return metric_value > max(10, baseline_value * 1.8) and robust_z >= 1.2
+    if metric == "avg_db_latency_ms":
+        return metric_value > max(35, baseline_value * 1.9) and robust_z >= 1.4
+    if metric == "avg_memory_usage":
+        return metric_value > max(72, baseline_value * 1.18) and robust_z >= 1.2
+    if metric == "avg_cpu_usage":
+        return metric_value > max(70, baseline_value * 1.18) and robust_z >= 1.2
+    if metric == "p95_latency_ms":
+        return metric_value > max(140, baseline_value * 1.35) and robust_z >= 1.3
+    return False
+
+
+def infer_alert_type(metric: str, row: pd.Series, service_df: pd.DataFrame, idx: int) -> str:
+    if bool(row["deployment_changed"]) and metric in {"error_rate", "p95_latency_ms", "status_5xx_rate"}:
+        return "deployment_regression"
+    if metric == "auth_failure_rate":
+        return "auth_failure_spike"
+    if metric == "avg_queue_lag":
         return "queue_backlog"
-    if "cpu" in joined or "latency" in joined:
-        return "latency_regression"
-    if "error_rate" in joined:
-        return "error_spike"
-    return "generic_anomaly"
+    if metric == "avg_db_latency_ms":
+        return "db_latency_spike"
+    if metric == "avg_memory_usage":
+        return "memory_pressure"
+    if metric == "avg_cpu_usage":
+        return "cpu_pressure"
+    if metric == "p95_latency_ms":
+        return "latency_spike"
+    if metric == "status_5xx_rate" and row["service_name"] in {"payment-service", "notification-service"}:
+        return "external_api_failure"
+    return METRIC_TO_ALERT[metric]
+
+
+def infer_severity(metric: str, metric_value: float, baseline_value: float, robust_z: float, iso_score: float) -> str:
+    ratio = metric_value / max(baseline_value, 1e-6)
+    score = max(abs(robust_z), ratio, iso_score / 0.55)
+    if metric in {"avg_queue_lag", "avg_db_latency_ms"}:
+        score += 0.2
+    if metric == "auth_failure_rate":
+        score += 0.1
+    if score >= 4.2:
+        return "critical"
+    if score >= 3.0:
+        return "high"
+    if score >= 2.0:
+        return "medium"
+    return "low"
+
+
+def build_reason(metric: str, metric_value: float, baseline_value: float, robust_z: float, row: pd.Series) -> str:
+    fragments = [
+        f"{metric}={metric_value:.4f}",
+        f"baseline={baseline_value:.4f}",
+        f"robust_z={robust_z:.2f}",
+    ]
+    if bool(row["deployment_changed"]):
+        fragments.append("deployment changed in this hour")
+    if bool(row["known_incident_flag"]):
+        fragments.append("overlaps synthetic known incident window")
+    if bool(row["iso_flag"]):
+        fragments.append("Isolation Forest also flagged this row")
+    return "; ".join(fragments)
 
 
 def suggested_investigation_area(alert_type: str) -> str:
     mapping = {
-        "database_latency": "Inspect slow queries, connection pool saturation, and downstream timeout propagation.",
-        "memory_pressure": "Review heap growth, memory retention patterns, and restart behavior.",
-        "queue_backlog": "Check worker throughput, queue consumer lag, and retry storm conditions.",
-        "latency_regression": "Compare recent deployments, CPU saturation, and upstream dependency latency.",
-        "error_spike": "Investigate application exceptions, recent config changes, and dependency availability.",
-        "generic_anomaly": "Start with correlated logs, recent releases, and service dependency health.",
+        "latency_spike": "Compare recent releases, top slow endpoints, and upstream dependency latency.",
+        "error_rate_spike": "Inspect exceptions, dependency failures, and user-impacting error slices.",
+        "memory_pressure": "Review heap growth, cache retention, and restart behavior.",
+        "cpu_pressure": "Inspect expensive code paths, batch fan-out, and autoscaling sufficiency.",
+        "db_latency_spike": "Check slow queries, connection pool saturation, and lock contention.",
+        "queue_backlog": "Measure consumer throughput, retries, and dead-letter activity.",
+        "deployment_regression": "Diff the rollout against the previous version and validate rollback criteria.",
+        "auth_failure_spike": "Inspect token validation, session expiry, and identity-provider dependencies.",
+        "external_api_failure": "Check third-party provider availability and fallback behavior.",
     }
     return mapping[alert_type]
 

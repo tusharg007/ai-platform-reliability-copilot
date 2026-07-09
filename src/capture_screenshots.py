@@ -1,8 +1,9 @@
-"""Generate dashboard-style PNG assets from pipeline outputs."""
+"""Generate validated screenshot assets from recalibrated analytics outputs."""
 
 from __future__ import annotations
 
 from pathlib import Path
+import json
 
 import matplotlib
 matplotlib.use("Agg")
@@ -10,6 +11,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from src.config import ASSETS_DIR, PREDICTIONS_DIR, PROCESSED_DATA_DIR, REPORTS_DIR, ensure_project_dirs
+from src.copilot import answer_question
 
 
 def capture_screenshots() -> list[Path]:
@@ -18,97 +20,203 @@ def capture_screenshots() -> list[Path]:
     alerts_df = pd.read_csv(PREDICTIONS_DIR / "reliability_alerts.csv")
     incidents_df = pd.read_csv(PREDICTIONS_DIR / "incidents.csv")
     risk_df = pd.read_csv(PREDICTIONS_DIR / "service_risk_scores.csv")
+    metrics_json = json.loads((REPORTS_DIR / "metrics.json").read_text(encoding="utf-8"))
 
     metrics_df["hour"] = pd.to_datetime(metrics_df["hour"], utc=True)
     alerts_df["timestamp"] = pd.to_datetime(alerts_df["timestamp"], utc=True)
     incidents_df["start_time"] = pd.to_datetime(incidents_df["start_time"], utc=True)
     incidents_df["end_time"] = pd.to_datetime(incidents_df["end_time"], utc=True)
 
-    saved_paths = [
-        save_overview(metrics_df, risk_df),
+    validate_for_visuals(metrics_df, alerts_df, incidents_df, risk_df)
+    return [
+        save_overview(metrics_df, alerts_df, incidents_df, risk_df),
         save_service_health(risk_df),
         save_anomaly_detection(alerts_df),
         save_incident_timeline(incidents_df),
-        save_copilot_placeholder(),
-        save_model_evaluation(),
+        save_copilot_assistant(),
+        save_model_evaluation(metrics_json, risk_df),
     ]
-    return saved_paths
 
 
-def save_overview(metrics_df: pd.DataFrame, risk_df: pd.DataFrame) -> Path:
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-    latest = metrics_df.sort_values("hour").groupby("service_name").tail(1)
-    axes[0].bar(latest["service_name"], latest["error_rate"] * 100, color="#c24f3d")
-    axes[0].set_title("Latest Error Rate by Service")
-    axes[0].tick_params(axis="x", rotation=45)
+def validate_for_visuals(metrics_df: pd.DataFrame, alerts_df: pd.DataFrame, incidents_df: pd.DataFrame, risk_df: pd.DataFrame) -> None:
+    latest_window = metrics_df[metrics_df["hour"] >= metrics_df["hour"].max() - pd.Timedelta(hours=24)]
+    error_view = latest_window.groupby("service_name")["error_rate"].mean()
+    if error_view.empty or error_view.sum() <= 0:
+        raise ValueError("Latest error rate view is empty or all zero")
+    if risk_df["risk_score"].nunique() <= 1:
+        raise ValueError("Risk score chart would have identical bars")
+    if alerts_df.empty or incidents_df.empty:
+        raise ValueError("Alerts or incidents are empty; screenshots would be misleading")
+
+
+def save_overview(metrics_df: pd.DataFrame, alerts_df: pd.DataFrame, incidents_df: pd.DataFrame, risk_df: pd.DataFrame) -> Path:
+    latest_window = metrics_df[metrics_df["hour"] >= metrics_df["hour"].max() - pd.Timedelta(hours=24)]
+    error_view = latest_window.groupby("service_name")["error_rate"].mean().sort_values(ascending=False) * 100
+    fig, axes = plt.subplots(2, 2, figsize=(14, 9))
+    axes = axes.flatten()
+    fig.suptitle("Reliability Overview", fontsize=16, fontweight="bold")
+
+    axes[0].bar(error_view.index, error_view.values, color="#b54747")
+    axes[0].set_title("24h Average Error Rate by Service")
     axes[0].set_ylabel("Error Rate (%)")
+    axes[0].tick_params(axis="x", rotation=40)
+
     axes[1].bar(risk_df["service_name"], risk_df["risk_score"], color="#1f6f8b")
-    axes[1].set_title("Reliability Risk Score")
-    axes[1].tick_params(axis="x", rotation=45)
+    axes[1].set_title("Reliability Risk Score by Service")
     axes[1].set_ylabel("Risk Score")
+    axes[1].set_ylim(0, max(95, risk_df["risk_score"].max() + 5))
+    axes[1].tick_params(axis="x", rotation=40)
+
+    alert_counts = alerts_df["severity"].value_counts().reindex(["low", "medium", "high", "critical"], fill_value=0)
+    axes[2].bar(alert_counts.index, alert_counts.values, color=["#6ea8fe", "#f9c74f", "#f9844a", "#d62828"])
+    axes[2].set_title("Alert Count by Severity")
+    axes[2].set_ylabel("Alerts")
+
+    axes[3].axis("off")
+    summary_text = (
+        f"Services monitored: {risk_df['service_name'].nunique()}\n"
+        f"Clustered incidents: {len(incidents_df)}\n"
+        f"High-risk services: {int(risk_df['risk_band'].isin(['High', 'Critical']).sum())}\n"
+        f"24h avg error rate: {latest_window['error_rate'].mean() * 100:.2f}%\n"
+        f"Recent alerts: {len(alerts_df)}"
+    )
+    axes[3].text(0.02, 0.98, summary_text, va="top", fontsize=13)
     return save_figure(fig, "dashboard_overview.png")
 
 
 def save_service_health(risk_df: pd.DataFrame) -> Path:
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig = plt.figure(figsize=(14, 9))
+    grid = fig.add_gridspec(2, 2)
+    ax1 = fig.add_subplot(grid[:, 0])
+    ax2 = fig.add_subplot(grid[0, 1])
+    ax3 = fig.add_subplot(grid[1, 1])
+
     colors = risk_df["risk_band"].map({"Low": "#4caf50", "Medium": "#ffb300", "High": "#ef6c00", "Critical": "#c62828"})
-    ax.barh(risk_df["service_name"], risk_df["risk_score"], color=colors)
-    ax.set_title("Service Health Risk Bands")
-    ax.set_xlabel("Risk Score")
+    ax1.barh(risk_df["service_name"], risk_df["risk_score"], color=colors)
+    ax1.set_title("Service Risk Scores")
+    ax1.set_xlabel("Risk Score")
+    ax1.invert_yaxis()
+
+    band_counts = risk_df["risk_band"].value_counts().reindex(["Low", "Medium", "High", "Critical"], fill_value=0)
+    ax2.bar(band_counts.index, band_counts.values, color=["#4caf50", "#ffb300", "#ef6c00", "#c62828"])
+    ax2.set_title("Risk Band Distribution")
+
+    ax3.axis("off")
+    driver_table = risk_df[["service_name", "top_risk_driver_1", "top_risk_driver_2"]].copy()
+    table = ax3.table(
+        cellText=driver_table.values,
+        colLabels=["Service", "Driver 1", "Driver 2"],
+        loc="center",
+        cellLoc="left",
+    )
+    table.auto_set_font_size(False)
+    table.set_fontsize(9)
+    table.scale(1, 1.4)
+    ax3.set_title("Top Risk Drivers")
     return save_figure(fig, "service_health.png")
 
 
 def save_anomaly_detection(alerts_df: pd.DataFrame) -> Path:
-    fig, ax = plt.subplots(figsize=(12, 5))
-    counts = alerts_df.groupby([alerts_df["timestamp"].dt.date, "severity"]).size().unstack(fill_value=0)
-    counts.plot(ax=ax)
-    ax.set_title("Reliability Alerts by Day")
-    ax.set_xlabel("Date")
-    ax.set_ylabel("Alert Count")
+    fig = plt.figure(figsize=(14, 9))
+    grid = fig.add_gridspec(2, 2)
+    ax1 = fig.add_subplot(grid[0, :])
+    ax2 = fig.add_subplot(grid[1, 0])
+    ax3 = fig.add_subplot(grid[1, 1])
+
+    trend = alerts_df.groupby([alerts_df["timestamp"].dt.floor("h"), "severity"]).size().unstack(fill_value=0)
+    trend.plot(ax=ax1)
+    ax1.set_title("Alerts Over Time by Severity")
+    ax1.set_ylabel("Alert Count")
+
+    type_counts = alerts_df["alert_type"].value_counts().head(8)
+    ax2.barh(type_counts.index, type_counts.values, color="#577590")
+    ax2.set_title("Anomaly Type Distribution")
+
+    ax3.axis("off")
+    recent_high = alerts_df[alerts_df["severity"].isin(["high", "critical"])].sort_values("timestamp", ascending=False).head(8)
+    table = ax3.table(
+        cellText=recent_high[["service_name", "alert_type", "severity"]].values,
+        colLabels=["Service", "Type", "Severity"],
+        loc="center",
+        cellLoc="left",
+    )
+    table.auto_set_font_size(False)
+    table.set_fontsize(9)
+    table.scale(1, 1.5)
+    ax3.set_title("Recent High/Critical Alerts")
     return save_figure(fig, "anomaly_detection.png")
 
 
 def save_incident_timeline(incidents_df: pd.DataFrame) -> Path:
-    fig, ax = plt.subplots(figsize=(12, 5))
-    y_positions = range(len(incidents_df))
+    fig = plt.figure(figsize=(14, 9))
+    grid = fig.add_gridspec(2, 2)
+    ax1 = fig.add_subplot(grid[:, 0])
+    ax2 = fig.add_subplot(grid[0, 1])
+    ax3 = fig.add_subplot(grid[1, 1])
+
     starts = incidents_df["start_time"].map(pd.Timestamp.timestamp)
-    ends = incidents_df["end_time"].map(pd.Timestamp.timestamp)
-    durations = ends - starts
-    ax.barh(list(y_positions), durations, left=starts, color="#5b8c5a")
-    ax.set_yticks(list(y_positions))
-    ax.set_yticklabels(incidents_df["incident_id"])
-    ax.set_title("Incident Timeline")
-    ax.set_xlabel("Unix Time Window")
+    durations = incidents_df["end_time"].map(pd.Timestamp.timestamp) - starts
+    colors = incidents_df["severity"].map({"low": "#6ea8fe", "medium": "#f9c74f", "high": "#f9844a", "critical": "#d62828"})
+    ax1.barh(incidents_df["incident_id"], durations, left=starts, color=colors)
+    ax1.set_title("Incident Timeline")
+    ax1.set_xlabel("Unix Time Window")
+
+    severity_counts = incidents_df["severity"].value_counts().reindex(["low", "medium", "high", "critical"], fill_value=0)
+    ax2.bar(severity_counts.index, severity_counts.values, color=["#6ea8fe", "#f9c74f", "#f9844a", "#d62828"])
+    ax2.set_title("Incident Severity Distribution")
+
+    ax3.axis("off")
+    table = ax3.table(
+        cellText=incidents_df.head(8)[["incident_id", "primary_service", "alert_count"]].values,
+        colLabels=["Incident", "Primary Service", "Alerts"],
+        loc="center",
+        cellLoc="left",
+    )
+    table.auto_set_font_size(False)
+    table.set_fontsize(9)
+    table.scale(1, 1.5)
+    ax3.set_title("Affected Services Snapshot")
     return save_figure(fig, "incident_timeline.png")
 
 
-def save_copilot_placeholder() -> Path:
-    fig, ax = plt.subplots(figsize=(12, 6))
+def save_copilot_assistant() -> Path:
+    response = answer_question("Why is payment-service risky in the latest synthetic incident window?")
+    fig, ax = plt.subplots(figsize=(14, 8))
     ax.axis("off")
-    ax.text(
-        0.02,
-        0.95,
+    lines = [
         "Copilot Assistant",
-        fontsize=18,
-        fontweight="bold",
-        transform=ax.transAxes,
-    )
-    ax.text(
-        0.02,
-        0.75,
-        "Summary\nLikely cause: deployment regression with downstream timeout propagation.\n\nSupporting evidence\n- Elevated p95 latency\n- High error rate after version change\n- Matching runbook retrieved",
-        fontsize=12,
-        va="top",
-        transform=ax.transAxes,
-    )
+        "",
+        "Question: Why is payment-service risky in the latest synthetic incident window?",
+        "",
+    ]
+    for key in ["Summary", "Likely cause", "Supporting evidence", "Recommended next debugging steps", "Human review note"]:
+        lines.append(f"{key}:")
+        value = response[key]
+        if isinstance(value, list):
+            lines.extend([f"- {item}" for item in value[:4]])
+        else:
+            lines.append(str(value))
+        lines.append("")
+    ax.text(0.01, 0.99, "\n".join(lines), va="top", fontsize=11)
     return save_figure(fig, "copilot_assistant.png")
 
 
-def save_model_evaluation() -> Path:
-    fig, ax = plt.subplots(figsize=(12, 6))
-    ax.axis("off")
-    text = (REPORTS_DIR / "model_evaluation.md").read_text(encoding="utf-8")
-    ax.text(0.01, 0.99, text[:1800], va="top", family="monospace", fontsize=10, transform=ax.transAxes)
+def save_model_evaluation(metrics_json: dict[str, object], risk_df: pd.DataFrame) -> Path:
+    fig = plt.figure(figsize=(14, 8))
+    grid = fig.add_gridspec(1, 2)
+    ax1 = fig.add_subplot(grid[0, 0])
+    ax2 = fig.add_subplot(grid[0, 1])
+
+    metric_names = ["incident_detection_recall", "alert_precision_estimate", "incident_clustering_overlap", "retrieval_relevance_at_3"]
+    metric_values = [float(metrics_json[name]) for name in metric_names]
+    ax1.bar(metric_names, metric_values, color="#43aa8b")
+    ax1.set_ylim(0, 1.0)
+    ax1.set_title("Evaluation Metrics")
+    ax1.tick_params(axis="x", rotation=35)
+
+    ax2.hist(risk_df["risk_score"], bins=6, color="#577590", edgecolor="white")
+    ax2.set_title("Risk Score Distribution")
+    ax2.set_xlabel("Risk Score")
     return save_figure(fig, "model_evaluation.png")
 
 
@@ -117,6 +225,8 @@ def save_figure(fig: plt.Figure, filename: str) -> Path:
     fig.tight_layout()
     fig.savefig(path, dpi=180, bbox_inches="tight")
     plt.close(fig)
+    if not path.exists() or path.stat().st_size == 0:
+        raise ValueError(f"Screenshot generation failed for {filename}")
     return path
 
 

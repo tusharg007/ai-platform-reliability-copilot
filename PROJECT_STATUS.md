@@ -26,6 +26,7 @@ The repository has been upgraded into a production-oriented prototype for AI-ass
 - Replaced the older backend/frontend-centered demo structure with a clearer pipeline under `src/`, `api/`, and `dashboard/`.
 - Added raw, processed, prediction, sample, runbook, report, asset, script, and evaluation artifacts.
 - Rewrote documentation to support recruiter-friendly, honest portfolio positioning.
+- Recalibrated synthetic traffic, alerting, incident clustering, and service risk scoring to eliminate empty charts and saturated `100` risk outputs.
 
 ## How To Run
 
@@ -39,8 +40,9 @@ The repository has been upgraded into a production-oriented prototype for AI-ass
 The following commands were verified locally during this upgrade on 2026-07-10:
 
 1. `python -m compileall src api tests`
-2. `python -m src.smoke_test`
-3. `pytest tests -q`
+2. `python -m src.validate_outputs`
+3. `python -m src.smoke_test`
+4. `pytest tests -q`
 
 ## Remaining Limitations
 

@@ -9,5 +9,12 @@ def test_clustered_incidents_exist():
 
 def test_clustered_incidents_have_recommendations():
     df = pd.read_csv(PREDICTIONS_DIR / "incidents.csv")
-    assert {"incident_id", "primary_service", "suspected_root_cause", "recommended_next_steps"}.issubset(df.columns)
+    assert {
+        "incident_id",
+        "primary_service",
+        "suspected_root_cause",
+        "recommended_next_steps",
+        "alert_count",
+        "severity",
+    }.issubset(df.columns)
     assert len(df) > 0

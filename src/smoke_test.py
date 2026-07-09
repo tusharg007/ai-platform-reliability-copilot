@@ -10,6 +10,7 @@ from src.generate_synthetic_logs import generate_synthetic_logs
 from src.incident_clustering import cluster_incidents
 from src.ingest_logs import ingest_logs
 from src.service_risk_scoring import score_services
+from src.validate_outputs import validate_outputs
 
 
 def main() -> None:
@@ -21,6 +22,7 @@ def main() -> None:
     evaluate_system()
     render_sample_outputs()
     screenshots = capture_screenshots()
+    validate_outputs()
     response = answer_question("Why did the database timeout propagate to upstream services?")
 
     assert response["Likely cause"]

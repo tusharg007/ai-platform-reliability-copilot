@@ -11,14 +11,14 @@ The current signal points to database timeout or downstream query latency. This 
 database timeout or downstream query latency
 
 ### Supporting evidence
-- INC-1001 - database timeout
+- INC-2001 - database timeout
 - database_timeout.md
-- INC-1004 - queue backlog
+- INC-2006 - queue backlog
 
 ### Similar incidents/runbooks
-- known_incident: INC-1001 - database timeout
+- known_incident: INC-2001 - database timeout
 - runbook: database_timeout.md
-- known_incident: INC-1004 - queue backlog
+- known_incident: INC-2006 - queue backlog
 
 ### Recommended next debugging steps
 - Inspect slow queries, connection pool saturation, and timeout budgets.
@@ -31,22 +31,22 @@ Validate the hypothesis against live traces, deployment notes, and on-call conte
 ## Prompt: Summarize INC-CLUSTER-001
 
 ### Summary
-The current signal points to generic_anomaly. This is a production-oriented prototype using synthetic platform logs and simulated incidents.
+The current signal points to 5xx error spike. This is a production-oriented prototype using synthetic platform logs and simulated incidents.
 
 ### Likely cause
-generic_anomaly
+5xx error spike
 
 ### Supporting evidence
-- Peak p95 latency 144.3 ms, peak error rate 0.00%, peak queue lag 4.3, peak DB latency 39.0 ms.
-- Affected services: api-gateway. Severity: medium.
-- INC-CLUSTER-001 - generic_anomaly
-- INC-CLUSTER-149 - generic_anomaly
-- INC-CLUSTER-125 - generic_anomaly
+- 7 alerts across 3 services from 2026-06-26T23:00:00+00:00 to 2026-06-27T04:00:00+00:00. Dominant symptoms: error_rate_spike. Deployment context: 2026.07.1.
+- Affected services: api-gateway, auth-service, payment-service. Severity: critical.
+- INC-CLUSTER-001 - 5xx error spike
+- INC-CLUSTER-049 - external API failure
+- INC-CLUSTER-004 - 5xx error spike
 
 ### Similar incidents/runbooks
-- predicted_incident: INC-CLUSTER-001 - generic_anomaly
-- predicted_incident: INC-CLUSTER-149 - generic_anomaly
-- predicted_incident: INC-CLUSTER-125 - generic_anomaly
+- predicted_incident: INC-CLUSTER-001 - 5xx error spike
+- predicted_incident: INC-CLUSTER-049 - external API failure
+- predicted_incident: INC-CLUSTER-004 - 5xx error spike
 
 ### Recommended next debugging steps
 - Correlate anomalies with recent releases, traffic shifts, and dependency health.

@@ -99,12 +99,15 @@ Each log record includes timestamp, service name, environment, log level, reques
 ![Service Health](assets/service_health.png)
 ![Anomaly Detection](assets/anomaly_detection.png)
 
+The screenshot set is generated from recalibrated outputs with validation checks to prevent empty error-rate views and saturated risk-score charts.
+
 ## Verified Local Run Status
 
 The intended verification commands are:
 
 ```powershell
 python -m compileall src api tests
+python -m src.validate_outputs
 python -m src.smoke_test
 pytest tests -q
 ```
@@ -183,6 +186,7 @@ ai-platform-reliability-copilot/
 - Production-oriented prototype for AI-assisted reliability analytics.
 - Synthetic incident intelligence workflow spanning ingestion, anomaly detection, retrieval, and API delivery.
 - Human-in-the-loop root-cause recommendation and service risk scoring.
+- Recalibrated output validation to prevent saturated scoring and empty observability charts.
 
 ## Limitations
 

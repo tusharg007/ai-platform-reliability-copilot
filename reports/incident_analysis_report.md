@@ -1,14 +1,13 @@
 # Incident Analysis Report
 
-Clustered incidents are compared against synthetic known incidents for overlap-based evaluation.
+- Known incidents: 7
+- Reliability alerts: 263
+- Clustered incidents: 83
+- High-risk services: 5
 
-- Known incidents: 8
-- Predicted clustered incidents: 170
-- Top risk service: api-gateway
-
-## High-Risk Services
-- api-gateway: 100.0 (Critical)
-- auth-service: 100.0 (Critical)
-- database-service: 100.0 (Critical)
-- notification-service: 100.0 (Critical)
-- payment-service: 100.0 (Critical)
+## Top Risk Services
+- payment-service: score=87.92, band=Critical, drivers=error rate, p95 latency
+- api-gateway: score=69.49, band=High, drivers=error rate, incident count
+- worker-service: score=64.78, band=High, drivers=p95 latency, error rate
+- recommendation-service: score=62.8, band=High, drivers=p95 latency, memory pressure
+- notification-service: score=62.41, band=High, drivers=error rate, p95 latency
