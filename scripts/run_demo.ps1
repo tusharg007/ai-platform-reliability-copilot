@@ -1,0 +1,10 @@
+python -m src.generate_synthetic_logs
+python -m src.ingest_logs
+python -m src.detect_anomalies
+python -m src.incident_clustering
+python -m src.service_risk_scoring
+python -m src.evaluate_system
+python -m src.copilot
+python -m src.capture_screenshots
+python -m src.smoke_test
+pytest tests -q

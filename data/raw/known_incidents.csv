@@ -1,0 +1,9 @@
+incident_id,incident_type,primary_service,affected_services,region,severity,start_time,end_time,deployment_version,description
+INC-1001,database timeout,database-service,"database-service,payment-service,api-gateway",us-east-1,high,2026-06-29T01:00:00+00:00,2026-06-29T11:00:00+00:00,2026.07.1,Primary database latency spike cascades into upstream timeouts.
+INC-1002,memory leak,recommendation-service,recommendation-service,eu-west-1,medium,2026-07-01T03:00:00+00:00,2026-07-01T21:00:00+00:00,2026.07.2,Memory rises steadily until restart pressure appears.
+INC-1003,deployment regression,api-gateway,"api-gateway,payment-service",us-west-2,high,2026-07-02T21:00:00+00:00,2026-07-03T09:00:00+00:00,2026.07.3,New gateway release increases 5xx responses and latency.
+INC-1004,queue backlog,worker-service,"worker-service,notification-service",ap-south-1,medium,2026-07-04T11:00:00+00:00,2026-07-05T03:00:00+00:00,2026.07.2,Consumer lag grows and downstream notifications slow.
+INC-1005,high latency,api-gateway,"api-gateway,recommendation-service",us-east-1,medium,2026-07-05T21:00:00+00:00,2026-07-06T05:00:00+00:00,2026.07.4,High CPU and fan-out latency elevate p95 response times.
+INC-1006,authentication failure spike,auth-service,"auth-service,api-gateway",eu-west-1,medium,2026-07-06T21:00:00+00:00,2026-07-07T03:00:00+00:00,2026.07.4,Invalid token verification path triggers elevated 401/403s.
+INC-1007,5xx error spike,payment-service,payment-service,us-west-2,high,2026-07-07T21:00:00+00:00,2026-07-08T05:00:00+00:00,2026.07.5,Payment processor errors elevate server-side failures.
+INC-1008,external API failure,notification-service,"notification-service,worker-service",ap-south-1,medium,2026-07-08T21:00:00+00:00,2026-07-09T07:00:00+00:00,2026.07.5,Third-party notification provider becomes unstable.

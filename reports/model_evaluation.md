@@ -1,0 +1,10 @@
+# Model Evaluation
+
+These metrics are approximate because the system is evaluated against synthetic ground truth and simulated incidents.
+
+- anomaly_incident_recall: 1.0
+- incident_clustering_overlap: 1.0
+- retrieval_relevance_at_3: 1.0
+- risk_scoring_sanity: 1.0
+- top_risk_service: api-gateway
+- recent_peak_p95_latency_ms: 544.28
