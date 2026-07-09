@@ -11,7 +11,7 @@ AI Platform Reliability Copilot is a production-oriented prototype for AI-assist
 
 This project demonstrates how an AI engineering and platform reliability workflow can be structured end to end without overclaiming real production deployment. The system generates synthetic multi-service telemetry, converts logs into service-level metrics, detects anomalies, clusters incidents, scores service risk, retrieves relevant runbooks, and serves the outputs through FastAPI, Streamlit, and report artifacts.
 
-## Recruiter Quick Scan
+## Quick Scan
 
 | Area | What This Repo Demonstrates |
 | --- | --- |
@@ -198,7 +198,7 @@ ai-platform-reliability-copilot/
 - `reports/responsible_ai_notes.md`
 - `reports/architecture.md`
 
-## Supported Resume Claims
+## Supported Project Claims
 
 - Production-oriented prototype for AI-assisted reliability analytics.
 - Synthetic incident intelligence workflow spanning ingestion, anomaly detection, retrieval, and API delivery.
