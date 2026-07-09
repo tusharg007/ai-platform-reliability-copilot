@@ -126,6 +126,13 @@ python -m uvicorn api.main:app --host 0.0.0.0 --port 8000
 python -m streamlit run dashboard/app.py
 ```
 
+Optional faster generation modes are available when you do not need the full default dataset:
+
+```powershell
+python -m src.generate_synthetic_logs --quick
+python -m src.generate_synthetic_logs --days 7 --seed 123
+```
+
 ## API Usage
 
 - `GET /health`
@@ -155,7 +162,9 @@ The Streamlit dashboard includes:
 
 - Local dashboard usage is Streamlit-based and intended for local demos.
 - Optional Render deployment is FastAPI-only through `render.yaml` and `scripts/render_start.sh`.
-- Render startup generates synthetic reliability data, builds processed outputs, validates them, and then starts the API.
+- Render does not run `capture_screenshots.py`, Streamlit, or screenshot validation.
+- Render uses existing generated CSV outputs when they are already committed and only bootstraps the minimum analytics pipeline when outputs are missing.
+- That fallback bootstrap uses `python -m src.generate_synthetic_logs --quick` to keep cold starts safer without changing the default portfolio dataset used locally.
 - The deployed API remains a deployment-ready API prototype built on synthetic platform logs and simulated incidents, not real production telemetry.
 
 ## Repository Structure

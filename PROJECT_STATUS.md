@@ -40,7 +40,8 @@ The repository has been upgraded into a production-oriented prototype for AI-ass
 
 - Local dashboards are served with Streamlit for recruiter-friendly walkthroughs.
 - Optional Render deployment is API-only and uses `requirements-api.txt`, `render.yaml`, and `scripts/render_start.sh`.
-- Render startup generates synthetic reliability data before launching FastAPI.
+- Render does not execute screenshot generation or Streamlit code.
+- Render reuses committed CSV outputs when available and only bootstraps the minimum analytics pipeline if outputs are missing.
 - No deployment path in this repo claims real production telemetry or real company usage.
 
 ## Verified Commands
@@ -49,8 +50,10 @@ The following commands were verified locally during this upgrade on 2026-07-10:
 
 1. `python -m compileall src api tests`
 2. `python -m src.validate_outputs`
-3. `python -m src.smoke_test`
-4. `python -m pytest tests -q`
+3. `python -m src.validate_screenshots`
+4. `python -m src.smoke_test`
+5. `python -m src.render_smoke_test`
+6. `python -m pytest tests -q`
 
 ## Remaining Limitations
 

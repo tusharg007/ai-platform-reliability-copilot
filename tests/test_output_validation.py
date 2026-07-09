@@ -1,6 +1,7 @@
 import pandas as pd
 
 from src.config import ASSETS_DIR, PREDICTIONS_DIR, PROCESSED_DATA_DIR
+from src.validate_screenshots import validate_screenshots
 
 
 def test_risk_scores_are_varied():
@@ -22,14 +23,4 @@ def test_alerts_and_incidents_are_meaningful():
 
 
 def test_screenshots_exist_and_are_non_empty():
-    for filename in [
-        "dashboard_overview.png",
-        "service_health.png",
-        "anomaly_detection.png",
-        "incident_timeline.png",
-        "copilot_assistant.png",
-        "model_evaluation.png",
-    ]:
-        path = ASSETS_DIR / filename
-        assert path.exists()
-        assert path.stat().st_size > 0
+    validate_screenshots()

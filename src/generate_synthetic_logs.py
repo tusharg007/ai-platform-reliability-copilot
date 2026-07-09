@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+import argparse
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 import math
+from pathlib import Path
 import random
-import uuid
 
 import pandas as pd
 
@@ -17,6 +17,8 @@ from src.config import DEFAULT_ENVIRONMENT, RAW_DATA_DIR, SAMPLE_DATA_DIR, ensur
 SEED = 42
 DEFAULT_DAYS = 14
 INTERVAL_MINUTES = 15
+QUICK_DAYS = 3
+QUICK_REQUEST_SCALE = 0.38
 REGIONS = ["us-east-1", "us-west-2", "eu-west-1", "ap-south-1"]
 SERVICE_PROFILES = {
     "api-gateway": {
@@ -145,6 +147,38 @@ class IncidentSpec:
         return start_time, end_incident
 
 
+@dataclass(frozen=True)
+class WeightedSampler:
+    values: tuple[object, ...]
+    cumulative: tuple[float, ...]
+
+    def pick(self, rng: random.Random) -> object:
+        target = rng.random() * self.cumulative[-1]
+        for index, boundary in enumerate(self.cumulative):
+            if target <= boundary:
+                return self.values[index]
+        return self.values[-1]
+
+
+def build_sampler(weighted_values: dict[object, float] | list[float], values: list[object] | None = None) -> WeightedSampler:
+    if isinstance(weighted_values, dict):
+        items = list(weighted_values.items())
+        sample_values = [item[0] for item in items]
+        weights = [float(item[1]) for item in items]
+    else:
+        if values is None:
+            raise ValueError("values must be provided when weighted_values is a list")
+        sample_values = list(values)
+        weights = [float(weight) for weight in weighted_values]
+
+    cumulative: list[float] = []
+    running = 0.0
+    for weight in weights:
+        running += weight
+        cumulative.append(running)
+    return WeightedSampler(tuple(sample_values), tuple(cumulative))
+
+
 def build_incident_specs() -> list[IncidentSpec]:
     return [
         IncidentSpec(
@@ -252,16 +286,27 @@ def build_deployment_schedule(start_time: datetime, end_time: datetime) -> dict[
     return schedule
 
 
-def get_active_deployment(service_name: str, ts: datetime, schedule: dict[str, list[dict[str, object]]]) -> tuple[str, datetime]:
-    events = schedule[service_name]
-    selected = events[0]
-    for event in events:
-        event_time = datetime.fromisoformat(str(event["timestamp"]))
-        if event_time <= ts:
-            selected = event
-        else:
-            break
-    return str(selected["deployment_version"]), datetime.fromisoformat(str(selected["timestamp"]))
+def build_deployment_lookup(
+    timestamps: pd.DatetimeIndex,
+    schedule: dict[str, list[dict[str, object]]],
+) -> dict[str, list[tuple[str, datetime]]]:
+    lookup: dict[str, list[tuple[str, datetime]]] = {}
+    for service_name, events in schedule.items():
+        parsed_events = [
+            (str(event["deployment_version"]), datetime.fromisoformat(str(event["timestamp"])))
+            for event in events
+        ]
+        event_index = 0
+        active_version, active_time = parsed_events[0]
+        service_lookup: list[tuple[str, datetime]] = []
+        for ts in timestamps:
+            ts_py = ts.to_pydatetime()
+            while event_index + 1 < len(parsed_events) and parsed_events[event_index + 1][1] <= ts_py:
+                event_index += 1
+                active_version, active_time = parsed_events[event_index]
+            service_lookup.append((active_version, active_time))
+        lookup[service_name] = service_lookup
+    return lookup
 
 
 def request_multiplier(ts: datetime, service_name: str) -> float:
@@ -271,13 +316,6 @@ def request_multiplier(ts: datetime, service_name: str) -> float:
     weekend = 0.82 if weekday >= 5 else 1.0
     service_modifier = 1.12 if service_name in {"api-gateway", "auth-service"} else 0.92 if service_name == "worker-service" else 1.0
     return max(0.45, business_wave * weekend * service_modifier)
-
-
-def service_status_code(profile: dict[str, object], rng: random.Random) -> int:
-    status_mix = profile["status_mix"]
-    codes = list(status_mix.keys())
-    weights = list(status_mix.values())
-    return int(rng.choices(codes, weights=weights, k=1)[0])
 
 
 def incident_modifiers(
@@ -309,7 +347,7 @@ def incident_modifiers(
     return {}
 
 
-def select_error_type(service_name: str, spec: IncidentSpec | None, status_code: int, rng: random.Random) -> tuple[str, str]:
+def select_error_type(service_name: str, spec: IncidentSpec | None, status_code: int) -> tuple[str, str]:
     if spec:
         mapping = {
             "database timeout": ("DATABASE_TIMEOUT", "Downstream database latency exceeded the configured timeout budget."),
@@ -335,24 +373,22 @@ def select_error_type(service_name: str, spec: IncidentSpec | None, status_code:
     return ("", "Request completed within the expected service envelope.")
 
 
-def generate_synthetic_logs(days: int = DEFAULT_DAYS, output_dir: Path | None = None) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    ensure_project_dirs()
-    rng = random.Random(SEED)
-    output_root = output_dir or RAW_DATA_DIR
-    output_root.mkdir(parents=True, exist_ok=True)
-
-    end_time = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
-    start_time = end_time - timedelta(days=days)
-    timestamps = pd.date_range(start=start_time, end=end_time, freq=f"{INTERVAL_MINUTES}min", inclusive="left")
-
-    incident_specs = build_incident_specs()
-    deployments = build_deployment_schedule(start_time, end_time)
-    deployment_rows = [event for events in deployments.values() for event in events]
-    incident_rows = []
+def build_interval_incident_lookup(
+    timestamps: pd.DatetimeIndex,
+    incident_specs: list[IncidentSpec],
+    start_time: datetime,
+    end_time: datetime,
+) -> tuple[dict[tuple[int, str], list[tuple[IncidentSpec, datetime]]], list[tuple[IncidentSpec, dict[str, object]]]]:
+    interval_lookup: dict[tuple[int, str], list[tuple[IncidentSpec, datetime]]] = {}
+    incident_rows: list[tuple[IncidentSpec, dict[str, object]]] = []
     for spec in incident_specs:
         incident_start, incident_end = spec.window(end_time)
+        if incident_end <= start_time or incident_start >= end_time:
+            continue
         incident_rows.append(
-            {
+            (
+                spec,
+                {
                 "incident_id": spec.incident_id,
                 "incident_type": spec.incident_type,
                 "primary_service": spec.primary_service,
@@ -361,103 +397,211 @@ def generate_synthetic_logs(days: int = DEFAULT_DAYS, output_dir: Path | None = 
                 "severity": spec.severity,
                 "start_time": incident_start.isoformat(),
                 "end_time": incident_end.isoformat(),
-                "deployment_version": get_active_deployment(spec.primary_service, incident_start, deployments)[0],
                 "description": spec.description,
-            }
+                },
+            )
         )
+        for index, ts in enumerate(timestamps):
+            ts_py = ts.to_pydatetime()
+            if incident_start <= ts_py < incident_end:
+                interval_lookup.setdefault((index, spec.region), []).append((spec, incident_start))
+    return interval_lookup, incident_rows
+
+
+def build_interval_context(
+    service_name: str,
+    profile: dict[str, object],
+    ts_py: datetime,
+    deployment_version: str,
+    deployment_time: datetime,
+    active_specs: list[tuple[IncidentSpec, datetime]],
+) -> dict[str, object]:
+    latency_ms = float(profile["latency_ms"])
+    cpu_usage = float(profile["cpu"])
+    memory_usage = float(profile["memory"])
+    db_latency_ms = float(profile["db_latency"])
+    queue_lag = float(profile["queue_lag"])
+    error_rate = float(profile["error_rate"])
+    client_error_rate = float(profile["client_error_rate"])
+    timeout_rate = 0.0
+    triggering_spec: IncidentSpec | None = None
+
+    for spec, incident_start in active_specs:
+        modifier = incident_modifiers(spec, service_name, ts_py, incident_start)
+        if not modifier:
+            continue
+        triggering_spec = spec
+        latency_ms += modifier.get("latency", 0.0)
+        cpu_usage += modifier.get("cpu", 0.0)
+        memory_usage += modifier.get("memory", 0.0)
+        db_latency_ms += modifier.get("db_latency", 0.0)
+        queue_lag += modifier.get("queue", 0.0)
+        error_rate += modifier.get("error_rate", 0.0)
+        client_error_rate += modifier.get("auth_failure_rate", 0.0)
+        timeout_rate += modifier.get("timeout_rate", 0.0)
+
+    deployment_freshness_hours = (ts_py - deployment_time).total_seconds() / 3600
+    if deployment_freshness_hours <= 6 and service_name in {"api-gateway", "payment-service"}:
+        latency_ms += 8
+        error_rate += 0.003
+
+    return {
+        "deployment_version": deployment_version,
+        "triggering_spec": triggering_spec,
+        "latency_ms": latency_ms,
+        "cpu_usage": cpu_usage,
+        "memory_usage": memory_usage,
+        "db_latency_ms": db_latency_ms,
+        "queue_lag": queue_lag,
+        "error_rate": error_rate,
+        "client_error_rate": client_error_rate,
+        "timeout_rate": timeout_rate,
+    }
+
+
+def resolve_status_code(
+    service_name: str,
+    profile: dict[str, object],
+    triggering_spec: IncidentSpec | None,
+    client_error_rate: float,
+    error_rate: float,
+    timeout_rate: float,
+    latency_ms: float,
+    rng: random.Random,
+    status_sampler: WeightedSampler,
+) -> int:
+    if rng.random() < client_error_rate:
+        if service_name == "auth-service":
+            status_code = 401 if rng.random() < 0.7 else 403
+        elif service_name == "api-gateway":
+            status_code = 401 if rng.random() < 0.5 else 400
+        else:
+            status_code = 400
+    elif rng.random() < error_rate:
+        if triggering_spec and triggering_spec.incident_type == "external API failure":
+            status_code = 502 if rng.random() < 0.65 else 503
+        elif triggering_spec and triggering_spec.incident_type == "database timeout":
+            status_code = 503 if rng.random() < 0.4 else 504
+        elif triggering_spec and triggering_spec.incident_type == "queue backlog":
+            status_code = 503 if rng.random() < 0.55 else 500
+        else:
+            status_code = int(status_sampler.pick(rng))
+            if status_code < 500:
+                status_code = 500 if rng.random() < 0.6 else 503
+    else:
+        status_code = int(status_sampler.pick(rng))
+        if status_code >= 400 and rng.random() > (client_error_rate + error_rate) * 3:
+            status_code = 200
+
+    if rng.random() < timeout_rate and status_code < 500:
+        status_code = 504
+
+    if latency_ms > float(profile["latency_ms"]) * 2.3 and status_code == 200 and rng.random() < 0.08:
+        status_code = 504
+
+    return status_code
+
+
+def generate_synthetic_logs(
+    days: int = DEFAULT_DAYS,
+    seed: int = SEED,
+    quick: bool = False,
+    output_dir: Path | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    ensure_project_dirs()
+    rng = random.Random(seed)
+    output_root = output_dir or RAW_DATA_DIR
+    output_root.mkdir(parents=True, exist_ok=True)
+
+    effective_days = QUICK_DAYS if quick and days == DEFAULT_DAYS else days
+    request_scale = QUICK_REQUEST_SCALE if quick else 1.0
+
+    end_time = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    start_time = end_time - timedelta(days=effective_days)
+    timestamps = pd.date_range(start=start_time, end=end_time, freq=f"{INTERVAL_MINUTES}min", inclusive="left")
+
+    incident_specs = build_incident_specs()
+    deployments = build_deployment_schedule(start_time, end_time)
+    deployment_rows = [event for events in deployments.values() for event in events]
+    deployment_lookup = build_deployment_lookup(timestamps, deployments)
+    interval_incidents, incident_rows = build_interval_incident_lookup(timestamps, incident_specs, start_time, end_time)
+
+    for spec, row in incident_rows:
+        start_time_spec = datetime.fromisoformat(str(row["start_time"]))
+        deployment_version = deployment_lookup[spec.primary_service][0][0]
+        for version, deployed_at in deployment_lookup[spec.primary_service]:
+            if deployed_at <= start_time_spec:
+                deployment_version = version
+            else:
+                break
+        row["deployment_version"] = deployment_version
 
     rows: list[dict[str, object]] = []
-    for ts in timestamps:
+    region_samplers = {
+        service_name: build_sampler(profile["regions"], REGIONS)
+        for service_name, profile in SERVICE_PROFILES.items()
+    }
+    status_samplers = {
+        service_name: build_sampler(profile["status_mix"])
+        for service_name, profile in SERVICE_PROFILES.items()
+    }
+
+    for index, ts in enumerate(timestamps):
         ts_py = ts.to_pydatetime()
         for service_name, profile in SERVICE_PROFILES.items():
-            base_requests = int(profile["base_requests"])
+            base_requests = float(profile["base_requests"]) * request_scale
             volume_noise = rng.uniform(0.85, 1.18)
             interval_requests = max(3, int(round(base_requests * request_multiplier(ts_py, service_name) * volume_noise)))
-            deployment_version, deployment_time = get_active_deployment(service_name, ts_py, deployments)
-            deployment_freshness_hours = (ts_py - deployment_time).total_seconds() / 3600
+            deployment_version, deployment_time = deployment_lookup[service_name][index]
+            interval_context_by_region = {
+                region: build_interval_context(
+                    service_name=service_name,
+                    profile=profile,
+                    ts_py=ts_py,
+                    deployment_version=deployment_version,
+                    deployment_time=deployment_time,
+                    active_specs=interval_incidents.get((index, region), []),
+                )
+                for region in REGIONS
+            }
+            status_sampler = status_samplers[service_name]
+            region_sampler = region_samplers[service_name]
+            endpoints = profile["endpoints"]
 
             for _ in range(interval_requests):
-                region = rng.choices(REGIONS, weights=profile["regions"], k=1)[0]
-                active_specs = []
-                for spec in incident_specs:
-                    incident_start, incident_end = spec.window(end_time)
-                    if spec.region == region and incident_start <= ts_py < incident_end:
-                        active_specs.append((spec, incident_start))
+                region = str(region_sampler.pick(rng))
+                context = interval_context_by_region[region]
+                triggering_spec = context["triggering_spec"]
+                latency_ms = float(context["latency_ms"]) + rng.gauss(0, float(profile["latency_jitter"]))
+                cpu_usage = float(context["cpu_usage"]) + rng.gauss(0, 3)
+                memory_usage = float(context["memory_usage"]) + rng.gauss(0, 2.5)
+                db_latency_ms = float(context["db_latency_ms"]) + rng.gauss(0, 3.2)
+                queue_lag = max(0.0, float(context["queue_lag"]) + rng.gauss(0, 1.2))
 
-                latency_ms = float(profile["latency_ms"]) + rng.gauss(0, float(profile["latency_jitter"]))
-                cpu_usage = float(profile["cpu"]) + rng.gauss(0, 3)
-                memory_usage = float(profile["memory"]) + rng.gauss(0, 2.5)
-                db_latency_ms = float(profile["db_latency"]) + rng.gauss(0, 3.2)
-                queue_lag = max(0.0, float(profile["queue_lag"]) + rng.gauss(0, 1.2))
-                error_rate = float(profile["error_rate"])
-                client_error_rate = float(profile["client_error_rate"])
-                timeout_rate = 0.0
-                triggering_spec: IncidentSpec | None = None
-
-                for spec, incident_start in active_specs:
-                    modifier = incident_modifiers(spec, service_name, ts_py, incident_start)
-                    if not modifier:
-                        continue
-                    triggering_spec = spec
-                    latency_ms += modifier.get("latency", 0.0)
-                    cpu_usage += modifier.get("cpu", 0.0)
-                    memory_usage += modifier.get("memory", 0.0)
-                    db_latency_ms += modifier.get("db_latency", 0.0)
-                    queue_lag += modifier.get("queue", 0.0)
-                    error_rate += modifier.get("error_rate", 0.0)
-                    client_error_rate += modifier.get("auth_failure_rate", 0.0)
-                    timeout_rate += modifier.get("timeout_rate", 0.0)
-
-                if deployment_freshness_hours <= 6 and service_name in {"api-gateway", "payment-service"}:
-                    latency_ms += 8
-                    error_rate += 0.003
-
-                status_code = 200
-                if rng.random() < client_error_rate:
-                    if service_name == "auth-service":
-                        status_code = 401 if rng.random() < 0.7 else 403
-                    elif service_name == "api-gateway":
-                        status_code = 401 if rng.random() < 0.5 else 400
-                    else:
-                        status_code = 400
-                elif rng.random() < error_rate:
-                    if triggering_spec and triggering_spec.incident_type == "external API failure":
-                        status_code = 502 if rng.random() < 0.65 else 503
-                    elif triggering_spec and triggering_spec.incident_type == "database timeout":
-                        status_code = 503 if rng.random() < 0.4 else 504
-                    elif triggering_spec and triggering_spec.incident_type == "queue backlog":
-                        status_code = 503 if rng.random() < 0.55 else 500
-                    else:
-                        status_code = service_status_code(profile, rng)
-                        if status_code < 500:
-                            status_code = 500 if rng.random() < 0.6 else 503
-                else:
-                    status_code = service_status_code(profile, rng)
-                    if status_code >= 400 and rng.random() > (client_error_rate + error_rate) * 3:
-                        status_code = 200
-
-                if rng.random() < timeout_rate and status_code < 500:
-                    status_code = 504
-
-                if latency_ms > float(profile["latency_ms"]) * 2.3 and status_code == 200 and rng.random() < 0.08:
-                    status_code = 504
-
-                error_type, message = select_error_type(service_name, triggering_spec, status_code, rng)
+                status_code = resolve_status_code(
+                    service_name=service_name,
+                    profile=profile,
+                    triggering_spec=triggering_spec,
+                    client_error_rate=float(context["client_error_rate"]),
+                    error_rate=float(context["error_rate"]),
+                    timeout_rate=float(context["timeout_rate"]),
+                    latency_ms=latency_ms,
+                    rng=rng,
+                    status_sampler=status_sampler,
+                )
+                error_type, message = select_error_type(service_name, triggering_spec, status_code)
                 if status_code < 400 and triggering_spec and triggering_spec.incident_type == "high latency":
                     message = "Service remained available but experienced elevated end-to-end latency."
-
-                log_level = "ERROR" if status_code >= 500 else "WARN" if status_code >= 400 else "INFO"
-                endpoint = profile["endpoints"][rng.randrange(len(profile["endpoints"]))]
 
                 rows.append(
                     {
                         "timestamp": (ts_py + timedelta(seconds=rng.randint(0, INTERVAL_MINUTES * 60 - 1))).isoformat(),
                         "service_name": service_name,
                         "environment": DEFAULT_ENVIRONMENT,
-                        "log_level": log_level,
-                        "request_id": f"req-{uuid.uuid4().hex[:14]}",
-                        "trace_id": f"trace-{uuid.uuid4().hex[:16]}",
-                        "endpoint": endpoint,
+                        "log_level": "ERROR" if status_code >= 500 else "WARN" if status_code >= 400 else "INFO",
+                        "request_id": f"req-{rng.getrandbits(56):014x}",
+                        "trace_id": f"trace-{rng.getrandbits(64):016x}",
+                        "endpoint": endpoints[rng.randrange(len(endpoints))],
                         "status_code": int(status_code),
                         "latency_ms": round(max(12.0, latency_ms), 2),
                         "error_type": error_type,
@@ -467,13 +611,13 @@ def generate_synthetic_logs(days: int = DEFAULT_DAYS, output_dir: Path | None = 
                         "db_latency_ms": round(min(400.0, max(1.0, db_latency_ms)), 2),
                         "queue_lag": round(min(120.0, max(0.0, queue_lag)), 2),
                         "region": region,
-                        "deployment_version": deployment_version,
+                        "deployment_version": str(context["deployment_version"]),
                     }
                 )
 
     logs_df = pd.DataFrame(rows).sort_values("timestamp").reset_index(drop=True)
     deployments_df = pd.DataFrame(deployment_rows).sort_values("timestamp").reset_index(drop=True)
-    incidents_df = pd.DataFrame(incident_rows).sort_values("start_time").reset_index(drop=True)
+    incidents_df = pd.DataFrame(row for _, row in incident_rows).sort_values("start_time").reset_index(drop=True)
 
     logs_df.to_csv(output_root / "platform_logs.csv", index=False)
     deployments_df.to_csv(output_root / "deployment_events.csv", index=False)
@@ -482,13 +626,29 @@ def generate_synthetic_logs(days: int = DEFAULT_DAYS, output_dir: Path | None = 
     return logs_df, deployments_df, incidents_df
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Generate synthetic reliability telemetry.")
+    parser.add_argument("--days", type=int, default=DEFAULT_DAYS, help="Number of trailing days to synthesize.")
+    parser.add_argument("--seed", type=int, default=SEED, help="Random seed for reproducible output generation.")
+    parser.add_argument("--quick", action="store_true", help="Generate a smaller CI and Render-friendly dataset.")
+    return parser.parse_args()
+
+
 def main() -> None:
-    logs_df, deployments_df, incidents_df = generate_synthetic_logs()
+    args = parse_args()
+    logs_df, deployments_df, incidents_df = generate_synthetic_logs(
+        days=args.days,
+        seed=args.seed,
+        quick=args.quick,
+    )
     print(
         "Generated synthetic data:",
         f"logs={len(logs_df)}",
         f"deployments={len(deployments_df)}",
         f"known_incidents={len(incidents_df)}",
+        f"days={QUICK_DAYS if args.quick and args.days == DEFAULT_DAYS else args.days}",
+        f"mode={'quick' if args.quick else 'default'}",
+        f"seed={args.seed}",
     )
 
 

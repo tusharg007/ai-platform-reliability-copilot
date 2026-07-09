@@ -20,4 +20,5 @@
 
 - The local demo uses Streamlit plus FastAPI.
 - The optional Render deployment path is FastAPI-only and is suitable for an API prototype demo.
-- Render startup regenerates synthetic data and serves the validated API outputs without requiring external keys.
+- Render skips screenshot generation and uses existing generated CSV outputs when present.
+- If outputs are missing, Render can bootstrap the required analytics pipeline, though that may increase cold-start time.

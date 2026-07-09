@@ -3,9 +3,9 @@
 Synthetic platform telemetry was normalized into service-level hourly metrics with incident flags.
 
 ## Summary
-- Raw log rows: 166542
-- Hourly metric rows: 2352
-- Timestamp range: 2026-06-25 22:00:07+00:00 to 2026-07-09 21:59:33+00:00
+- Raw log rows: 14329
+- Hourly metric rows: 504
+- Timestamp range: 2026-07-06 23:00:27+00:00 to 2026-07-09 22:59:44+00:00
 - Duplicate request IDs: 0
 
 ## Missing Values
@@ -35,23 +35,23 @@ Synthetic platform telemetry was normalized into service-level hourly metrics wi
 - incident_label: 0
 
 ## Error Rate By Service
-- api-gateway: 1.63%
-- payment-service: 1.63%
-- notification-service: 0.94%
-- worker-service: 0.91%
-- database-service: 0.71%
-- recommendation-service: 0.70%
-- auth-service: 0.48%
+- payment-service: 2.27%
+- api-gateway: 1.40%
+- worker-service: 1.00%
+- notification-service: 0.57%
+- recommendation-service: 0.40%
+- auth-service: 0.34%
+- database-service: 0.27%
 
 ## Request Count Variation
-- api-gateway: min=85.0, mean=155.86, max=241.0
-- auth-service: min=54.0, mean=103.64, max=160.0
-- database-service: min=21.0, mean=38.52, max=60.0
-- notification-service: min=22.0, mean=42.25, max=64.0
-- payment-service: min=28.0, mean=53.8, max=83.0
-- recommendation-service: min=36.0, mean=69.76, max=110.0
-- worker-service: min=16.0, mean=31.84, max=49.0
+- api-gateway: min=38.0, mean=61.64, max=88.0
+- auth-service: min=25.0, mean=41.44, max=63.0
+- database-service: min=12.0, mean=15.65, max=22.0
+- notification-service: min=12.0, mean=17.12, max=23.0
+- payment-service: min=13.0, mean=21.44, max=32.0
+- recommendation-service: min=17.0, mean=27.83, max=39.0
+- worker-service: min=12.0, mean=13.88, max=19.0
 
 ## Incident Coverage
-- Incident-flagged service-hour rows: 112
-- Distinct incident labels: 7
+- Incident-flagged service-hour rows: 45
+- Distinct incident labels: 4

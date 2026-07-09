@@ -9,7 +9,7 @@ from src.validate_outputs import validate_outputs
 
 
 def pytest_sessionstart(session):
-    generate_synthetic_logs()
+    generate_synthetic_logs(quick=True)
     ingest_logs()
     detect_anomalies()
     cluster_incidents()

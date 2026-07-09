@@ -1,8 +1,8 @@
 service_name,risk_score,risk_band,request_count,error_rate,p95_latency_ms,anomaly_count,high_critical_alert_count,incident_count,top_risk_driver_1,top_risk_driver_2,top_risk_driver_3,recommended_action
-payment-service,88.46,Critical,2779,0.018683932932884756,271.42879999999997,16,12,25,error rate,p95 latency,anomaly count,"Inspect high-impact failures, dependency health, and customer-facing error slices."
-api-gateway,68.89,High,8066,0.012396159407284077,142.622,16,6,32,error rate,anomaly count,incident count,"Inspect high-impact failures, dependency health, and customer-facing error slices."
-recommendation-service,65.13,High,3595,0.006782309877407989,178.33599999999996,9,9,16,p95 latency,memory pressure,error rate,Compare the latest release against previous latency baselines and slow endpoints.
-notification-service,63.06,High,2185,0.012675537341909937,193.74859999999998,12,10,4,error rate,p95 latency,high severity alerts,"Inspect high-impact failures, dependency health, and customer-facing error slices."
-worker-service,58.59,Medium,1671,0.008744061330668606,226.2327999999999,8,8,2,p95 latency,error rate,DB latency,Compare the latest release against previous latency baselines and slow endpoints.
-auth-service,45.98,Medium,5382,0.004514301837266734,102.86359999999996,9,9,10,high severity alerts,anomaly count,incident count,Review the dominant risk drivers before selecting mitigation steps.
-database-service,38.45,Low,2003,0.0025724236213082877,69.58299999999998,0,0,2,memory pressure,CPU pressure,error rate,Review memory growth by release and consider rollback criteria.
+payment-service,82.27,Critical,1048,0.027003023895602028,250.94939999999986,5,4,3,error rate,p95 latency,DB latency,"Inspect high-impact failures, dependency health, and customer-facing error slices."
+worker-service,75.96,High,679,0.013342901263069324,214.12959999999998,9,9,2,error rate,p95 latency,anomaly count,"Inspect high-impact failures, dependency health, and customer-facing error slices."
+api-gateway,69.33,High,2993,0.012389604755577127,138.8895,6,2,6,error rate,incident count,anomaly count,"Inspect high-impact failures, dependency health, and customer-facing error slices."
+notification-service,60.02,High,839,0.005689548546691402,185.7093,8,8,2,p95 latency,error rate,anomaly count,Compare the latest release against previous latency baselines and slow endpoints.
+recommendation-service,55.14,Medium,1360,0.004734625679845869,183.51459999999997,0,0,0,p95 latency,memory pressure,error rate,Compare the latest release against previous latency baselines and slow endpoints.
+auth-service,46.15,Medium,2030,0.003764515917771394,103.7116,3,1,3,incident count,error rate,anomaly count,Review the dominant risk drivers before selecting mitigation steps.
+database-service,39.7,Low,764,0.002475990396158463,68.3784,0,0,0,memory pressure,CPU pressure,error rate,Review memory growth by release and consider rollback criteria.

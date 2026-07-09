@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.config import ASSETS_DIR, PREDICTIONS_DIR, PROCESSED_DATA_DIR, ROOT_DIR
+from src.config import PREDICTIONS_DIR, PROCESSED_DATA_DIR, ROOT_DIR
 from src.copilot import answer_question
 
 
@@ -101,20 +101,6 @@ def validate_outputs() -> None:
     for required_fragment in ["Risk score:", "24h error rate:", "P95 latency:", "Recent high/critical alert count:"]:
         if required_fragment not in supporting:
             raise ValueError("copilot response is missing concrete numeric evidence")
-
-    required_assets = [
-        "dashboard_overview.png",
-        "service_health.png",
-        "anomaly_detection.png",
-        "incident_timeline.png",
-        "copilot_assistant.png",
-        "model_evaluation.png",
-    ]
-    for filename in required_assets:
-        path = ASSETS_DIR / filename
-        if not path.exists() or path.stat().st_size < 20000:
-            raise ValueError(f"Missing or empty screenshot: {filename}")
-
 
 def main() -> None:
     validate_outputs()
