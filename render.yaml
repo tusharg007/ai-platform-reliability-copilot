@@ -1,15 +1,45 @@
 services:
+  # ── Backend API ──────────────────────────────────────────────────────────────
   - type: web
     name: ai-platform-reliability-copilot-api
     runtime: python
     plan: free
-    buildCommand: pip install -r requirements.txt && python data/generate_synthetic_data.py
+    buildCommand: |
+      pip install -r requirements.txt &&
+      python data/generate_synthetic_data.py
     startCommand: python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
       - key: APP_ENV
         value: production
+      - key: LOG_FORMAT
+        value: json
+      - key: LOG_LEVEL
+        value: INFO
       - key: LLM_PROVIDER
-        value: mock
+        value: mock          # Override with groq/openai in Render dashboard
       - key: PYTHON_VERSION
-        value: 3.12.6
+        value: "3.12.6"
+      - key: PYTHONPATH
+        value: /opt/render/project/src
+      # OTel — Prometheus exporter enabled (exposes /metrics)
+      - key: OTEL_ENABLED
+        value: "true"
+      - key: OTEL_SERVICE_NAME
+        value: reliability-copilot-prod
+      # Redis — Render free tier has no Redis add-on; disable by default.
+      # Add a Redis instance (Upstash, Redis Cloud) and set REDIS_URL to enable.
+      - key: REDIS_ENABLED
+        value: "false"
+      # Auth disabled by default — enable for production
+      - key: AUTH_ENABLED
+        value: "false"
+      - key: ALERT_MIN_SEVERITY
+        value: SEV-2
+      # ── Secrets — set these in Render dashboard, not here ──────────────────
+      # - key: GROQ_API_KEY
+      #   sync: false
+      # - key: SLACK_WEBHOOK_URL
+      #   sync: false
+      # - key: JWT_SECRET_KEY
+      #   sync: false

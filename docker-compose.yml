@@ -1,24 +1,162 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  AI Platform Reliability Copilot — docker-compose
+#
+#  Default stack (monitoring ON, no extra flags needed):
+#    docker compose up
+#
+#  Access:
+#    API          http://localhost:8000
+#    Dashboard    http://localhost:8501
+#    Prometheus   http://localhost:9090
+#    Grafana      http://localhost:3000  (admin / admin)
+#    App metrics  http://localhost:8000/metrics
+# ─────────────────────────────────────────────────────────────────────────────
+
 services:
+
+  # ── Backend API ──────────────────────────────────────────────────────────────
   backend:
-    build: .
-    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000
-    env_file:
-      - .env.example
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      LOG_FORMAT: console
+      LOG_LEVEL: INFO
+
+      # LLM — set in your .env file
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.1-8b-instant}
+
+      # Database
+      DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:///data/platform_reliability.db}
+
+      # Redis — enabled and wired to the redis service
+      REDIS_ENABLED: "true"
+      REDIS_URL: redis://redis:6379
+
+      # OpenTelemetry — enabled, Prometheus exporter exposes /metrics
+      OTEL_ENABLED: "true"
+      OTEL_SERVICE_NAME: reliability-copilot
+      # OTLP endpoint points to the OTel Collector (optional advanced path)
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+
+      # Auth
+      AUTH_ENABLED: ${AUTH_ENABLED:-false}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-secret-change-in-production}
+
+      # Alerting
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+      ALERT_MIN_SEVERITY: ${ALERT_MIN_SEVERITY:-SEV-2}
     volumes:
       - ./data:/app/data
       - ./knowledge_base:/app/knowledge_base
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
+  # ── Frontend Dashboard ────────────────────────────────────────────────────────
   frontend:
-    build: .
-    command: streamlit run frontend/app.py --server.address 0.0.0.0 --server.port 8501
-    environment:
-      API_BASE_URL: http://backend:8000
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: streamlit run frontend/app.py --server.address 0.0.0.0 --server.port 8501 --server.headless true
     ports:
       - "8501:8501"
-    depends_on:
-      - backend
+    environment:
+      API_BASE_URL: http://backend:8000
+      LOG_LEVEL: WARNING
     volumes:
       - ./data:/app/data
       - ./knowledge_base:/app/knowledge_base
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Redis ─────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7.4-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --save 60 1
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # ── OpenTelemetry Collector ───────────────────────────────────────────────────
+  # Receives OTLP from the app, forwards metrics to Prometheus on port 8889.
+  # Traces are logged to console (extend to Jaeger/Tempo as needed).
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.114.0
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./infra/otel/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317:4317"    # OTLP gRPC receiver
+      - "4318:4318"    # OTLP HTTP receiver
+      - "8888:8888"    # OTel Collector self-metrics
+      - "8889:8889"    # Prometheus metrics (forwarded from app via OTLP)
+    restart: unless-stopped
+
+  # ── Prometheus ────────────────────────────────────────────────────────────────
+  # Scrapes:
+  #   - backend:8000/metrics  (direct, via opentelemetry-exporter-prometheus)
+  #   - otel-collector:8888   (collector self-metrics)
+  #   - otel-collector:8889   (app metrics via OTLP → Collector → Prometheus)
+  prometheus:
+    image: prom/prometheus:v2.56.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-lifecycle
+    restart: unless-stopped
+
+  # ── Grafana ───────────────────────────────────────────────────────────────────
+  # Auto-provisions:
+  #   - Prometheus datasource (infra/grafana/provisioning/datasources/)
+  #   - Reliability Copilot dashboard (infra/grafana/provisioning/dashboards/)
+  grafana:
+    image: grafana/grafana:11.4.0
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_FEATURE_TOGGLES_ENABLE: "publicDashboards"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  prometheus_data:
+  grafana_data:

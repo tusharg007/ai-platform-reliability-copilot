@@ -1,11 +1,58 @@
+# ─────────────────────────────────────────────────────────────
+#  AI Platform Reliability Copilot — Production Requirements
+# ─────────────────────────────────────────────────────────────
+
+# ── Core API Framework ────────────────────────────────────────
 fastapi==0.115.6
-uvicorn[standard]==0.34.0
-pydantic==2.10.4
-pandas==2.2.3
-numpy==2.2.1
-scikit-learn==1.6.0
-streamlit==1.41.1
-requests==2.32.3
-python-dotenv==1.0.1
-pytest==8.3.4
 httpx==0.27.2
+pydantic==2.10.4
+uvicorn[standard]==0.34.0
+
+# ── Database ──────────────────────────────────────────────────
+aiosqlite==0.20.0
+alembic==1.14.1
+asyncpg==0.30.0
+sqlalchemy[asyncio]==2.0.36
+
+# ── Data & ML ─────────────────────────────────────────────────
+numpy==2.2.1
+pandas==2.2.3
+scikit-learn==1.6.0
+
+# ── ML / RAG (optional — graceful fallback if unavailable) ────
+# sentence-transformers==3.3.1
+# chromadb==0.5.23
+# hdbscan==0.8.40
+
+# ── Observability / OpenTelemetry ─────────────────────────────
+opentelemetry-api==1.29.0
+opentelemetry-exporter-otlp==1.29.0
+opentelemetry-instrumentation-fastapi==0.50b0
+opentelemetry-instrumentation-httpx==0.50b0
+opentelemetry-instrumentation-sqlalchemy==0.50b0
+opentelemetry-sdk==1.29.0
+structlog==24.4.0
+
+# ── Security / Auth ───────────────────────────────────────────
+bcrypt==4.2.1
+pyjwt[crypto]==2.10.1
+
+# ── Real-time / Caching ───────────────────────────────────────
+redis==5.2.1
+websockets==14.1
+
+# ── Frontend ──────────────────────────────────────────────────
+requests==2.32.3
+streamlit==1.41.1
+
+# ── Utilities ─────────────────────────────────────────────────
+python-dotenv==1.0.1
+tiktoken==0.8.0
+
+# ── Testing & Quality ─────────────────────────────────────────
+bandit==1.8.2
+mypy==1.14.0
+pytest==8.3.4
+pytest-asyncio==0.25.0
+pytest-cov==6.0.0
+ruff==0.8.4

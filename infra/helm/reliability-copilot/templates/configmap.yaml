@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "reliability-copilot.fullname" . }}-config
+  labels:
+    {{- include "reliability-copilot.labels" . | nindent 4 }}
+data:
+  APP_ENV: {{ .Values.app.environment | quote }}
+  LOG_LEVEL: {{ .Values.app.logLevel | quote }}
+  LOG_FORMAT: {{ .Values.app.logFormat | quote }}
+  LLM_PROVIDER: {{ .Values.llm.provider | quote }}
+  GROQ_MODEL: {{ .Values.llm.groqModel | quote }}
+  DATABASE_URL: {{ .Values.database.url | quote }}
+  REDIS_ENABLED: {{ .Values.redis.enabled | quote }}
+  REDIS_URL: {{ .Values.redis.url | quote }}
+  OTEL_ENABLED: {{ .Values.monitoring.otel.enabled | quote }}
+  OTEL_SERVICE_NAME: {{ .Values.monitoring.otel.serviceName | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.monitoring.otel.exporterEndpoint | quote }}
+  AUTH_ENABLED: {{ .Values.auth.enabled | quote }}
+  ALERT_MIN_SEVERITY: {{ .Values.alerting.alertMinSeverity | quote }}

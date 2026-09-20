@@ -1,0 +1,174 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  AI Platform Reliability Copilot — Helm Values
+#
+#  Override with:
+#    helm upgrade --install copilot ./infra/helm/reliability-copilot \
+#      --set llm.groqApiKey=gsk_... \
+#      --set monitoring.enabled=true
+# ─────────────────────────────────────────────────────────────────────────────
+
+replicaCount: 2
+
+image:
+  repository: reliability-copilot
+  tag: "2.0.0"
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: "reliability-copilot"
+
+# ── Application Config ─────────────────────────────────────────────────────────
+app:
+  environment: production
+  logLevel: INFO
+  logFormat: json
+
+# ── LLM Provider ──────────────────────────────────────────────────────────────
+llm:
+  provider: mock          # mock | groq | openai | gemini | gpt-oss-120b
+  groqApiKey: ""          # Set via --set llm.groqApiKey=gsk_... or Kubernetes Secret
+  openaiApiKey: ""
+  geminiApiKey: ""
+  groqModel: "llama-3.1-8b-instant"
+
+# ── Database ───────────────────────────────────────────────────────────────────
+database:
+  # url: postgresql+asyncpg://user:pass@postgres:5432/reliability_copilot
+  url: "sqlite+aiosqlite:///data/platform_reliability.db"
+
+# ── Redis ─────────────────────────────────────────────────────────────────────
+redis:
+  enabled: true
+  internal: true          # Deploy Redis as part of this release
+  url: "redis://reliability-copilot-redis:6379"
+  image: "redis:7.4-alpine"
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+# ── Monitoring ─────────────────────────────────────────────────────────────────
+monitoring:
+  enabled: true
+  otel:
+    enabled: true
+    serviceName: reliability-copilot
+    exporterEndpoint: ""  # Leave empty — uses built-in Prometheus exporter
+  prometheus:
+    # Expose /metrics on the service for Prometheus ServiceMonitor
+    scrape: true
+    port: 8000
+    path: /metrics
+  serviceMonitor:
+    enabled: false        # Set true if Prometheus Operator is installed
+    interval: 15s
+
+# ── Alerting ───────────────────────────────────────────────────────────────────
+alerting:
+  slackWebhookUrl: ""     # Set via --set alerting.slackWebhookUrl=https://...
+  alertMinSeverity: "SEV-2"
+
+# ── Auth ───────────────────────────────────────────────────────────────────────
+auth:
+  enabled: false
+  jwtSecretKey: "change-in-production"
+
+# ── Service ───────────────────────────────────────────────────────────────────
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+  annotations: {}
+
+# ── Ingress ───────────────────────────────────────────────────────────────────
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+  hosts:
+    - host: copilot.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: copilot-tls
+      hosts:
+        - copilot.example.com
+
+# ── Resources ─────────────────────────────────────────────────────────────────
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "250m"
+  limits:
+    memory: "1Gi"
+    cpu: "1000m"
+
+# ── Auto-Scaling ──────────────────────────────────────────────────────────────
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# ── Pod Disruption Budget ─────────────────────────────────────────────────────
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# ── Probes ────────────────────────────────────────────────────────────────────
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 15
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 2
+
+# ── Security ──────────────────────────────────────────────────────────────────
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop: ["ALL"]
+
+# ── Persistent Data (for SQLite in dev) ───────────────────────────────────────
+persistence:
+  enabled: false  # Disable in prod — use external PostgreSQL
+  storageClass: "standard"
+  size: "5Gi"
+  accessMode: ReadWriteOnce
+
+# ── Node placement ────────────────────────────────────────────────────────────
+nodeSelector: {}
+tolerations: []
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: reliability-copilot
+          topologyKey: kubernetes.io/hostname

@@ -1,0 +1,14 @@
+apiVersion: v2
+name: reliability-copilot
+description: AI Platform Reliability Copilot — production Helm chart
+type: application
+version: 2.0.0
+appVersion: "2.0.0"
+keywords:
+  - reliability
+  - ai
+  - observability
+  - sre
+maintainers:
+  - name: Platform Engineering
+home: https://github.com/your-org/ai-platform-reliability-copilot

@@ -1,25 +1,200 @@
-name: CI
+name: CI/CD — AI Platform Reliability Copilot
 
 on:
   push:
+    branches: [main, develop]
   pull_request:
+    branches: [main]
+
+# Global env — safe defaults for CI (no real keys needed)
+env:
+  PYTHONPATH: ${{ github.workspace }}
+  APP_ENV: test
+  LLM_PROVIDER: mock
+  OTEL_ENABLED: "false"      # OTel off in CI (no Prometheus needed)
+  REDIS_ENABLED: "false"     # Redis off in CI
+  AUTH_ENABLED: "false"
+  LOG_FORMAT: console
+  LOG_LEVEL: WARNING
 
 jobs:
-  test:
+  # ── Stage 1: Lint & Type Check ─────────────────────────────────────────────
+  lint:
+    name: Lint & Type Check
     runs-on: ubuntu-latest
-    env:
-      PYTHONPATH: ${{ github.workspace }}
-      PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+
+      - name: Install lint tools
+        run: pip install ruff mypy
+
+      - name: Ruff lint
+        run: ruff check backend/ evals/ --select=E,W,F,I --ignore=E501
+
+      - name: Mypy type check
+        run: mypy backend/ --ignore-missing-imports --no-strict-optional || true
+
+  # ── Stage 2: Security Scan ─────────────────────────────────────────────────
+  security:
+    name: Security Scan (Bandit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install bandit
+      - run: bandit -r backend/ -ll -x backend/tests || true
+
+  # ── Stage 3: Unit Tests + Coverage ────────────────────────────────────────
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: [lint]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
       - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate synthetic test data
+        run: python data/generate_synthetic_data.py
+
+      - name: Run pytest with coverage
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pytest tests/ -q \
+            --cov=backend \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-fail-under=55 \
+            -x
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          file: coverage.xml
+          fail_ci_if_error: false
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+  # ── Stage 4: Eval Quality Gate ────────────────────────────────────────────
+  evals:
+    name: Eval Quality Gate
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
       - name: Generate synthetic data
         run: python data/generate_synthetic_data.py
-      - name: Run tests
-        run: python -m pytest -q
+
+      - name: Run eval suite (golden set)
+        run: |
+          python -m evals.runner \
+            --dataset=golden_set \
+            --threshold-groundedness=0.70 \
+            --threshold-hallucination=0.15 \
+            --threshold-relevance=0.65 \
+            --output=eval_report.md
+
+      - name: Upload eval report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-report
+          path: eval_report.md
+
+  # ── Stage 5: Docker Build & Push ──────────────────────────────────────────
+  docker:
+    name: Docker Build & Push
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/reliability-copilot:latest
+            ghcr.io/${{ github.repository_owner }}/reliability-copilot:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke-test container
+        run: |
+          docker run -d --name copilot-smoke \
+            -p 8000:8000 \
+            -e LLM_PROVIDER=mock \
+            -e OTEL_ENABLED=false \
+            -e REDIS_ENABLED=false \
+            ghcr.io/${{ github.repository_owner }}/reliability-copilot:${{ github.sha }}
+          echo "Waiting for startup..."
+          sleep 20
+          curl -f http://localhost:8000/health || (docker logs copilot-smoke && exit 1)
+          curl -f http://localhost:8000/services || exit 1
+          docker stop copilot-smoke
+
+  # ── Stage 6: Deploy to Render (on push to main) ────────────────────────────
+  deploy:
+    name: Deploy to Render
+    runs-on: ubuntu-latest
+    needs: [docker, evals]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Trigger Render deploy hook
+        if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
+        run: |
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" \
+            -H "Content-Type: application/json" || echo "Render deploy hook not set — skipping"
+
+      - name: Deployment summary
+        run: |
+          echo "## Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "- Docker image pushed to ghcr.io/${{ github.repository_owner }}/reliability-copilot:${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Backend: https://ai-platform-reliability-copilot-api.onrender.com/health" >> $GITHUB_STEP_SUMMARY
+          echo "- Dashboard: https://ai-platform-reliability-copilot-mmkajbee2t4acamzwu852j.streamlit.app/" >> $GITHUB_STEP_SUMMARY
