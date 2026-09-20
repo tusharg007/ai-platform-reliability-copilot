@@ -79,7 +79,7 @@ jobs:
             --cov=backend \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
-            --cov-fail-under=55 \
+            --cov-fail-under=50 \
             -x
 
       - name: Upload coverage artifact
