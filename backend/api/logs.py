@@ -3,7 +3,6 @@ from fastapi import APIRouter
 from backend.models.schemas import LogAnalysisResponse, ServiceRegionRequest
 from backend.services.log_analyzer import LogAnalyzer
 
-
 router = APIRouter()
 
 

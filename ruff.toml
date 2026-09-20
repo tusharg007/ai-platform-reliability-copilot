@@ -1,0 +1,25 @@
+# Ruff configuration for AI Platform Reliability Copilot
+# https://docs.astral.sh/ruff/configuration/
+
+[lint]
+select = ["E", "W", "F", "I"]
+ignore = [
+    "E501",   # Line too long — handled by formatter
+    "E402",   # Module level import not at top — needed for late conditional imports
+    "E741",   # Ambiguous variable name — l, O, I are fine in comprehensions
+    "E731",   # Lambda assignment — acceptable for one-liner helpers
+    "F401",   # Unused imports — some are re-exports; keep for readability
+    "F841",   # Local variable assigned but never used — debug variables
+]
+
+[lint.per-file-ignores]
+"backend/auth/__init__.py" = ["F401", "E402"]
+"backend/database/db.py" = ["E402"]
+"backend/ingestion/__init__.py" = ["F401"]
+"backend/telemetry/__init__.py" = ["F401"]
+"backend/services/incident_clustering.py" = ["E741", "F841"]
+"evals/runner.py" = ["E731", "F841"]
+
+[format]
+quote-style = "double"
+indent-style = "space"

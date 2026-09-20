@@ -86,7 +86,6 @@ def _build_async_engine():
         from sqlalchemy.orm import sessionmaker
 
         from backend.utils.config import get_settings
-        from backend.database.models import Base
 
         settings = get_settings()
         db_url = settings.database_url

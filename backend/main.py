@@ -12,13 +12,16 @@ from backend.api.chat import router as chat_router
 from backend.api.incidents import router as incidents_router
 from backend.api.logs import router as logs_router
 from backend.api.metrics import router as metrics_router
-from backend.database.db import initialize_database, create_all_tables
+from backend.database.db import create_all_tables, initialize_database
 from backend.ingestion import router as ingestion_router
 from backend.services.log_analyzer import LogAnalyzer
 from backend.services.redis_client import redis_info
-from backend.telemetry import configure_logging, setup_otel, get_logger, get_copilot_metrics
+from backend.telemetry import (
+    configure_logging,
+    get_logger,
+    setup_otel,
+)
 from backend.utils.config import get_settings
-
 
 settings = get_settings()
 configure_logging()
@@ -137,8 +140,9 @@ def prometheus_metrics():
     Returns OTel metrics in Prometheus text format.
     Active when OTEL_ENABLED=true (no external collector needed).
     """
-    from backend.telemetry import get_prometheus_metrics_response
     from fastapi.responses import Response
+
+    from backend.telemetry import get_prometheus_metrics_response
 
     content, media_type = get_prometheus_metrics_response()
     if content is None:

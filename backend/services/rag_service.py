@@ -54,7 +54,7 @@ class RAGService:
     def _try_load_models(self) -> None:
         """Attempt to load sentence-transformers and cross-encoder reranker."""
         try:
-            from sentence_transformers import SentenceTransformer, CrossEncoder
+            from sentence_transformers import CrossEncoder, SentenceTransformer
             self._embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
             logger.info("RAGService: loaded dense embedding model (all-MiniLM-L6-v2)")
             try:

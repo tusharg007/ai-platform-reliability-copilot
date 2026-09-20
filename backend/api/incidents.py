@@ -7,7 +7,11 @@ from datetime import datetime
 
 from fastapi import APIRouter
 
-from backend.models.schemas import FeedbackRequest, IncidentResponse, ServiceRegionRequest
+from backend.models.schemas import (
+    FeedbackRequest,
+    IncidentResponse,
+    ServiceRegionRequest,
+)
 from backend.services.incident_generator import IncidentGenerator
 
 logger = logging.getLogger(__name__)

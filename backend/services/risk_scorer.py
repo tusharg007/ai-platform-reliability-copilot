@@ -12,9 +12,8 @@ Weights are configurable via environment variables (RISK_W_* env vars).
 
 from __future__ import annotations
 
-import json
 import logging
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any
 

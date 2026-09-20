@@ -96,10 +96,16 @@ def setup_otel(app: Any = None) -> None:
         from opentelemetry import metrics as otel_metrics
         from opentelemetry import trace
         from opentelemetry.sdk.metrics import MeterProvider
+        from opentelemetry.sdk.metrics.export import (
+            ConsoleMetricExporter,
+            PeriodicExportingMetricReader,
+        )
         from opentelemetry.sdk.resources import Resource
         from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-        from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, PeriodicExportingMetricReader
+        from opentelemetry.sdk.trace.export import (
+            BatchSpanProcessor,
+            ConsoleSpanExporter,
+        )
 
         resource = Resource.create({
             "service.name": settings.otel_service_name,
@@ -124,7 +130,9 @@ def setup_otel(app: Any = None) -> None:
         otlp_endpoint = settings.otel_exporter_endpoint
         if otlp_endpoint and otlp_endpoint not in ("", "disabled"):
             try:
-                from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+                from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import (
+                    OTLPMetricExporter,
+                )
                 otlp_metric_reader = PeriodicExportingMetricReader(
                     OTLPMetricExporter(endpoint=otlp_endpoint),
                     export_interval_millis=30_000,
@@ -150,7 +158,9 @@ def setup_otel(app: Any = None) -> None:
 
         if otlp_endpoint and otlp_endpoint not in ("", "disabled"):
             try:
-                from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+                from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+                    OTLPSpanExporter,
+                )
                 tracer_provider.add_span_processor(
                     BatchSpanProcessor(OTLPSpanExporter(endpoint=otlp_endpoint))
                 )
@@ -202,7 +212,7 @@ def get_prometheus_metrics_response():
     is not initialised.
     """
     try:
-        from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, REGISTRY
+        from prometheus_client import CONTENT_TYPE_LATEST, REGISTRY, generate_latest
         return generate_latest(REGISTRY), CONTENT_TYPE_LATEST
     except ImportError:
         return None, None

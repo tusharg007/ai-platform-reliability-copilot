@@ -9,7 +9,6 @@ import pandas as pd
 
 from backend.utils.config import DATA_DIR
 
-
 LOGS_PATH = DATA_DIR / "synthetic_logs.csv"
 
 

@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any
 
@@ -332,7 +332,7 @@ class RootCauseEngine:
 
         # Universal first-response steps
         actions.append("📋 Open incident channel and assign incident commander (IC)")
-        actions.append(f"📊 Confirm scope: check Grafana/metrics for affected services and regions")
+        actions.append("📊 Confirm scope: check Grafana/metrics for affected services and regions")
 
         if dep_failures:
             ver = dep_failures[0].get("deployment_version", "unknown")
