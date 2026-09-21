@@ -27,6 +27,7 @@ scikit-learn==1.6.0
 # ── Observability / OpenTelemetry ─────────────────────────────
 opentelemetry-api==1.29.0
 opentelemetry-exporter-otlp==1.29.0
+opentelemetry-exporter-prometheus==0.50b0
 opentelemetry-instrumentation-fastapi==0.50b0
 opentelemetry-instrumentation-httpx==0.50b0
 opentelemetry-instrumentation-sqlalchemy==0.50b0

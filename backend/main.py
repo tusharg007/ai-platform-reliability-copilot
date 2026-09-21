@@ -138,19 +138,12 @@ def prometheus_metrics():
     """Prometheus metrics scrape endpoint.
 
     Returns OTel metrics in Prometheus text format.
-    Active when OTEL_ENABLED=true (no external collector needed).
     """
     from fastapi.responses import Response
 
     from backend.telemetry import get_prometheus_metrics_response
 
     content, media_type = get_prometheus_metrics_response()
-    if content is None:
-        return Response(
-            content="# OTel Prometheus exporter not initialised. Set OTEL_ENABLED=true\n",
-            media_type="text/plain",
-            status_code=503,
-        )
     return Response(content=content, media_type=media_type)
 
 

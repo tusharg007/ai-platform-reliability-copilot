@@ -1,16 +1,16 @@
 """OpenTelemetry self-instrumentation — PRODUCTION GRADE, actually works.
 
 Three export paths (all can run simultaneously):
-  1. Prometheus  — always on when OTEL_ENABLED=true. Exposes /metrics endpoint
+  1. Prometheus  — always on. Exposes /metrics endpoint
                    that Prometheus scrapes directly. No external collector needed.
-  2. OTLP/gRPC   — optional. Set OTEL_EXPORTER_OTLP_ENDPOINT to enable.
+  2. OTLP/gRPC   — optional. Set OTEL_ENABLED=true and OTEL_EXPORTER_OTLP_ENDPOINT.
                    Sends to OTel Collector → Jaeger / Tempo for traces.
   3. Console      — set OTEL_CONSOLE_EXPORT=true for local debug.
 
-Default behaviour (what you get with OTEL_ENABLED=true):
+Default behaviour:
   - Prometheus metrics at GET /metrics
-  - FastAPI auto-instrumentation (every HTTP request traced)
-  - 7 custom business metrics: query.duration, anomaly.detected, etc.
+  - FastAPI auto-instrumentation when OTEL_ENABLED=true
+  - 8 custom business metrics: query.duration, anomaly.detected, etc.
   - Structured JSON logging via structlog
 """
 
@@ -80,17 +80,17 @@ _otel_initialized = False
 def setup_otel(app: Any = None) -> None:
     """Initialise OpenTelemetry with Prometheus + optional OTLP export.
 
-    Prometheus exporter is ALWAYS enabled when OTEL_ENABLED=true — it
-    exposes /metrics for Prometheus to scrape, requiring zero external
-    infrastructure.
+    Prometheus is always enabled for /metrics without an external collector.
+    OTLP export and tracing require OTEL_ENABLED=true.
 
-    OTLP is enabled only when OTEL_EXPORTER_OTLP_ENDPOINT is set.
+    OTLP also requires OTEL_EXPORTER_OTLP_ENDPOINT to be set.
     """
     global _tracer, _meter, _prometheus_registry, _otel_initialized
 
-    settings = get_settings()
-    if not settings.otel_enabled:
+    if _otel_initialized:
         return
+
+    settings = get_settings()
 
     try:
         from opentelemetry import metrics as otel_metrics
@@ -115,20 +115,21 @@ def setup_otel(app: Any = None) -> None:
 
         # ── Metric Readers: Prometheus (always) + optional OTLP ──────────────
         readers = []
+        prometheus_available = False
 
         # 1. Prometheus exporter — scrape at GET /metrics
         try:
             from opentelemetry.exporter.prometheus import PrometheusMetricReader
             prom_reader = PrometheusMetricReader()
             readers.append(prom_reader)
-            _prometheus_registry = True
+            prometheus_available = True
             get_logger(__name__).info("Prometheus metrics exporter enabled → GET /metrics")
         except ImportError:
             get_logger(__name__).warning("opentelemetry-exporter-prometheus not installed; /metrics disabled")
 
         # 2. OTLP exporter — only if endpoint is configured
         otlp_endpoint = settings.otel_exporter_endpoint
-        if otlp_endpoint and otlp_endpoint not in ("", "disabled"):
+        if settings.otel_enabled and otlp_endpoint and otlp_endpoint not in ("", "disabled"):
             try:
                 from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import (
                     OTLPMetricExporter,
@@ -152,47 +153,49 @@ def setup_otel(app: Any = None) -> None:
         meter_provider = MeterProvider(resource=resource, metric_readers=readers)
         otel_metrics.set_meter_provider(meter_provider)
         _meter = otel_metrics.get_meter(settings.otel_service_name)
+        _prometheus_registry = prometheus_available
 
-        # ── Tracer: Console (always) + optional OTLP ─────────────────────────
-        tracer_provider = TracerProvider(resource=resource)
+        if settings.otel_enabled:
+            # Tracing is optional; the Prometheus meter above is always active.
+            tracer_provider = TracerProvider(resource=resource)
 
-        if otlp_endpoint and otlp_endpoint not in ("", "disabled"):
-            try:
-                from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
-                    OTLPSpanExporter,
-                )
+            if otlp_endpoint and otlp_endpoint not in ("", "disabled"):
+                try:
+                    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+                        OTLPSpanExporter,
+                    )
+                    tracer_provider.add_span_processor(
+                        BatchSpanProcessor(OTLPSpanExporter(endpoint=otlp_endpoint))
+                    )
+                    get_logger(__name__).info("OTLP trace exporter enabled", endpoint=otlp_endpoint)
+                except Exception as exc:
+                    get_logger(__name__).warning("OTLP trace exporter failed", error=str(exc))
+            else:
                 tracer_provider.add_span_processor(
-                    BatchSpanProcessor(OTLPSpanExporter(endpoint=otlp_endpoint))
+                    BatchSpanProcessor(ConsoleSpanExporter())
                 )
-                get_logger(__name__).info("OTLP trace exporter enabled", endpoint=otlp_endpoint)
-            except Exception as exc:
-                get_logger(__name__).warning("OTLP trace exporter failed", error=str(exc))
-        else:
-            # Use console exporter so traces are visible even without a collector
-            tracer_provider.add_span_processor(
-                BatchSpanProcessor(ConsoleSpanExporter())
-            )
 
-        trace.set_tracer_provider(tracer_provider)
-        _tracer = trace.get_tracer(settings.otel_service_name)
+            trace.set_tracer_provider(tracer_provider)
+            _tracer = trace.get_tracer(settings.otel_service_name)
 
-        # ── FastAPI Auto-Instrumentation ──────────────────────────────────────
-        if app is not None:
-            try:
-                from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-                FastAPIInstrumentor.instrument_app(
-                    app,
-                    excluded_urls="/health,/metrics,/pipeline/status",
-                )
-                get_logger(__name__).info("FastAPI auto-instrumentation enabled")
-            except ImportError:
-                pass
+            if app is not None:
+                try:
+                    from opentelemetry.instrumentation.fastapi import (
+                        FastAPIInstrumentor,
+                    )
+                    FastAPIInstrumentor.instrument_app(
+                        app,
+                        excluded_urls="/health,/metrics,/pipeline/status",
+                    )
+                    get_logger(__name__).info("FastAPI auto-instrumentation enabled")
+                except ImportError:
+                    pass
 
         _otel_initialized = True
         get_logger(__name__).info(
             "OpenTelemetry initialised",
-            prometheus_enabled=_prometheus_registry is not None,
-            otlp_enabled=bool(otlp_endpoint),
+            prometheus_enabled=prometheus_available,
+            otlp_enabled=settings.otel_enabled and bool(otlp_endpoint) and otlp_endpoint != "disabled",
         )
 
     except ImportError as exc:
@@ -208,14 +211,12 @@ def setup_otel(app: Any = None) -> None:
 def get_prometheus_metrics_response():
     """Return raw Prometheus text-format metrics for the /metrics endpoint.
 
-    Returns (content, media_type) tuple. Returns None if Prometheus exporter
-    is not initialised.
+    Returns (content, media_type) tuple after the exporter is initialised.
     """
-    try:
-        from prometheus_client import CONTENT_TYPE_LATEST, REGISTRY, generate_latest
-        return generate_latest(REGISTRY), CONTENT_TYPE_LATEST
-    except ImportError:
-        return None, None
+    if not _prometheus_registry:
+        raise RuntimeError("Prometheus exporter is not initialised")
+    from prometheus_client import CONTENT_TYPE_LATEST, REGISTRY, generate_latest
+    return generate_latest(REGISTRY), CONTENT_TYPE_LATEST
 
 
 # ─────────────────────────────────────────────────────────────────────────────
