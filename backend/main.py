@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +14,7 @@ from backend.api.incidents import router as incidents_router
 from backend.api.logs import router as logs_router
 from backend.api.metrics import router as metrics_router
 from backend.database.db import create_all_tables, initialize_database
+from backend.ingestion import StreamProcessor, consume_kafka
 from backend.ingestion import router as ingestion_router
 from backend.services.log_analyzer import LogAnalyzer
 from backend.services.redis_client import redis_info
@@ -35,6 +37,10 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage startup and shutdown lifecycle tasks."""
+    bootstrap_servers = settings.kafka_bootstrap_servers.strip()
+    if settings.kafka_enabled and not bootstrap_servers:
+        raise RuntimeError("KAFKA_BOOTSTRAP_SERVERS is required when KAFKA_ENABLED=true")
+
     logger.info(
         "Starting AI Platform Reliability Copilot",
         version=settings.app_version,
@@ -65,9 +71,21 @@ async def lifespan(app: FastAPI):
         except Exception as exc:
             logger.warning("Slack test ping failed: %s", exc)
 
-    yield
+    kafka_task = None
+    if settings.kafka_enabled:
+        kafka_task = asyncio.create_task(
+            consume_kafka(bootstrap_servers, StreamProcessor.get()),
+            name="kafka-telemetry-consumer",
+        )
 
-    logger.info("Shutting down AI Platform Reliability Copilot")
+    try:
+        yield
+    finally:
+        if kafka_task is not None:
+            kafka_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await kafka_task
+        logger.info("Shutting down AI Platform Reliability Copilot")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -156,7 +174,6 @@ def services() -> dict:
 @app.get("/pipeline/status", tags=["ops"])
 def pipeline_status() -> dict:
     """Return the status of the ingestion, cache, and telemetry pipeline."""
-    from backend.ingestion import StreamProcessor
     processor = StreamProcessor.get()
     return {
         "pipeline": "active",

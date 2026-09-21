@@ -170,17 +170,27 @@ LLM_PROVIDER=mock
 GROQ_API_KEY=gsk_...          # Get free at console.groq.com
 
 # Monitoring (ON by default in docker-compose)
-OTEL_ENABLED=true              # Exposes /metrics — no collector needed
+OTEL_ENABLED=true              # Enables tracing; /metrics is always available
 OTEL_EXPORTER_OTLP_ENDPOINT=  # Optional: OTel Collector endpoint
 
 # Cache
 REDIS_ENABLED=true
 REDIS_URL=redis://localhost:6379
 
+# Optional Kafka consumer for JSON log and metric events
+KAFKA_ENABLED=false
+KAFKA_BOOTSTRAP_SERVERS=localhost:9092  # Required when enabled
+
 # Alerting
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
 ALERT_MIN_SEVERITY=SEV-2      # Minimum severity to trigger Slack alerts
 ```
+
+When Kafka is enabled, the API consumes JSON objects from `platform.logs` and
+`platform.metrics` into the same bounded buffers used by `/ingest/logs` and
+`/ingest/metrics`. `/ingest/stats` reports `kafka_connected`; HTTP ingestion
+continues to work in either mode. The buffers are in memory and do not persist
+across restarts.
 
 > **Model name as provider:** `LLM_PROVIDER=gpt-oss-120b` works — the code infers the provider from whichever API key is present and passes the value as the model name.
 

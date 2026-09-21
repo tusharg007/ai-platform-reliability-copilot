@@ -11,19 +11,23 @@ Everything degrades gracefully to HTTP-only mode without Kafka.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from backend.utils.config import get_settings
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ingest", tags=["ingestion"])
+KAFKA_LOG_TOPIC = "platform.logs"
+KAFKA_METRIC_TOPIC = "platform.metrics"
+KAFKA_RETRY_SECONDS = 5
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -80,8 +84,8 @@ class AlertWebhook(BaseModel):
 class StreamProcessor:
     """Processes incoming telemetry events and computes rolling window aggregates.
 
-    In production, this connects to Kafka. In HTTP-only mode, it maintains
-    an in-memory buffer of recent events for anomaly detection queries.
+    Kafka and HTTP events share an in-memory buffer of recent telemetry for
+    anomaly detection queries.
     """
 
     _instance: "StreamProcessor | None" = None
@@ -92,6 +96,7 @@ class StreamProcessor:
         self._alert_buffer: list[dict] = []
         self._buffer_size = buffer_size
         self._event_count = 0
+        self.kafka_connected = False
 
     @classmethod
     def get(cls) -> "StreamProcessor":
@@ -170,7 +175,63 @@ class StreamProcessor:
             "log_buffer_size": len(self._log_buffer),
             "metric_buffer_size": len(self._metric_buffer),
             "active_alerts": len(self.get_active_alerts()),
+            "kafka_connected": self.kafka_connected,
         }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Kafka Consumer
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _create_kafka_consumer(bootstrap_servers: str):
+    from aiokafka import AIOKafkaConsumer
+
+    return AIOKafkaConsumer(
+        KAFKA_LOG_TOPIC,
+        KAFKA_METRIC_TOPIC,
+        bootstrap_servers=bootstrap_servers,
+        group_id="reliability-copilot",
+        auto_offset_reset="earliest",
+    )
+
+
+def _ingest_kafka_message(message: Any, processor: StreamProcessor) -> None:
+    """Validate one Kafka record and pass it through the HTTP ingestion path."""
+    try:
+        payload = json.loads(message.value)
+        if message.topic == KAFKA_LOG_TOPIC:
+            processor.ingest_log(LogEvent.model_validate(payload))
+        elif message.topic == KAFKA_METRIC_TOPIC:
+            processor.ingest_metric(MetricEvent.model_validate(payload))
+        else:
+            logger.warning("Ignoring unexpected Kafka topic: %s", message.topic)
+    except (UnicodeDecodeError, json.JSONDecodeError, ValidationError, TypeError) as exc:
+        logger.warning("Skipping invalid Kafka record on %s (%s)", message.topic, type(exc).__name__)
+
+
+async def consume_kafka(bootstrap_servers: str, processor: StreamProcessor) -> None:
+    """Consume telemetry continuously, reconnecting after broker failures."""
+    while True:
+        consumer = None
+        try:
+            consumer = _create_kafka_consumer(bootstrap_servers)
+            await consumer.start()
+            processor.kafka_connected = True
+            logger.info("Kafka consumer connected to %s", bootstrap_servers)
+            async for message in consumer:
+                _ingest_kafka_message(message, processor)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Kafka consumer failed; reconnecting")
+        finally:
+            processor.kafka_connected = False
+            if consumer is not None:
+                try:
+                    await consumer.stop()
+                except Exception:
+                    logger.exception("Failed to stop Kafka consumer")
+        await asyncio.sleep(KAFKA_RETRY_SECONDS)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

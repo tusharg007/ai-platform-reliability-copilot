@@ -76,7 +76,7 @@ class Settings:
     redis_enabled: bool = os.getenv("REDIS_ENABLED", "false").lower() == "true"
 
     # ── Streaming (optional Kafka) ────────────────────────────────────────────
-    kafka_bootstrap_servers: str = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+    kafka_bootstrap_servers: str = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "")
     kafka_enabled: bool = os.getenv("KAFKA_ENABLED", "false").lower() == "true"
 
     # ── OpenTelemetry ─────────────────────────────────────────────────────────
